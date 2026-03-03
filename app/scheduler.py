@@ -2,9 +2,10 @@
 APScheduler job definitions.
 
 Jobs:
-  fetch_forecast  – stáhne předpověď z forecast.solar (každou hodinu + při startu)
-  collect_actual  – zaznamená aktuální výkon z HA (každých 5 min, 6–21h)
-  daily_calibrate – spustí kalibraci a uloží denní souhrn (22:00)
+  fetch_forecast    – stáhne předpověď z forecast.solar (každou hodinu + při startu)
+  fetch_weather     – stáhne počasí z Open-Meteo (6:00 + 14:00)
+  collect_actual    – zaznamená aktuální výkon z HA (každých 5 min, 6–21h)
+  daily_calibrate   – spustí kalibraci a uloží denní souhrn (22:00)
 """
 
 import logging
@@ -16,6 +17,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from app.clients.forecast_solar import ForecastSolarClient
 from app.clients.ha_client import HAClient
+from app.clients.open_meteo import OpenMeteoClient
 from app.config import AppConfig
 from app.database import DatabaseManager
 from app.engine.calibration import CalibrationEngine
@@ -32,12 +34,14 @@ class JobScheduler:
         forecast_client: ForecastSolarClient,
         ha_client: HAClient,
         calibration: CalibrationEngine,
+        weather_client: OpenMeteoClient,
     ) -> None:
         self.config = config
         self.db = db
         self.forecast_client = forecast_client
         self.ha_client = ha_client
         self.calibration = calibration
+        self.weather_client = weather_client
         self.scheduler = AsyncIOScheduler(timezone="UTC")
 
     def start(self) -> None:
@@ -48,6 +52,17 @@ class JobScheduler:
             id="fetch_forecast_hourly",
             name="Fetch forecast.solar (hourly)",
             next_run_time=datetime.utcnow(),  # run immediately at startup
+            max_instances=1,
+            coalesce=True,
+        )
+
+        # ── Weather fetch: 06:00 + 14:00 UTC ─────────────────────────────
+        self.scheduler.add_job(
+            self._fetch_weather_job,
+            trigger=CronTrigger(hour="6,14", minute=10),
+            id="fetch_weather",
+            name="Fetch Open-Meteo weather (6+14h)",
+            next_run_time=datetime.utcnow(),  # also run at startup
             max_instances=1,
             coalesce=True,
         )
@@ -88,6 +103,14 @@ class JobScheduler:
             logger.info("Forecast fetch: stored %d slots", count)
         except Exception as exc:
             logger.error("Forecast fetch failed: %s", exc)
+
+    async def _fetch_weather_job(self) -> None:
+        try:
+            records = await self.weather_client.fetch_today_and_tomorrow()
+            await self.db.upsert_weather_hourly(records)
+            logger.info("Weather fetch: stored %d hourly records", len(records))
+        except Exception as exc:
+            logger.error("Weather fetch failed: %s", exc)
 
     async def _collect_actual_job(self) -> None:
         power_w = await self.ha_client.get_pv_power_w()

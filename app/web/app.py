@@ -17,6 +17,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.database import DatabaseManager
 from app.engine.calibration import CalibrationEngine, CalibrationState
+from app.engine import metrics as M
 
 logger = logging.getLogger(__name__)
 
@@ -168,35 +169,123 @@ def create_app(db: DatabaseManager, calibration: CalibrationEngine) -> FastAPI:
         summaries = await db.get_recent_summaries(60)
         cal_state_row = await db.get_calibration_state()
 
-        metrics = []
+        daily = []
         for s in summaries:
-            actual = s.get("actual_wh")
-            forecast_cal = s.get("forecast_wh_calibrated")
-            error_wh = None
-            mape = None
-            if actual is not None and forecast_cal is not None and actual > 0:
-                error_wh = actual - forecast_cal
-                mape = abs(error_wh) / actual * 100
-
-            metrics.append(
+            daily.append(
                 {
                     "date": s["summary_date"],
-                    "ratio": round(s["ratio"], 3) if s.get("ratio") else None,
-                    "correction_factor": round(s["correction_factor"], 3)
-                    if s.get("correction_factor")
-                    else None,
-                    "error_wh": round(error_wh, 0) if error_wh is not None else None,
-                    "mape_pct": round(mape, 1) if mape is not None else None,
-                    "tod_morning": s.get("tod_morning_factor"),
-                    "tod_midday": s.get("tod_midday_factor"),
-                    "tod_afternoon": s.get("tod_afternoon_factor"),
+                    "ratio": _r(s.get("ratio"), 3),
+                    "correction_factor": _r(s.get("correction_factor"), 3),
+                    # Calibrated
+                    "rmse_w":   _r(s.get("rmse_w"), 1),
+                    "mae_w":    _r(s.get("mae_w"), 1),
+                    "mbe_w":    _r(s.get("mbe_w"), 1),
+                    "mape_pct": _r(s.get("mape_pct"), 1),
+                    # Raw
+                    "rmse_raw_w":   _r(s.get("rmse_raw_w"), 1),
+                    "mae_raw_w":    _r(s.get("mae_raw_w"), 1),
+                    "mbe_raw_w":    _r(s.get("mbe_raw_w"), 1),
+                    "mape_raw_pct": _r(s.get("mape_raw_pct"), 1),
+                    # Weather
+                    "cloud_pct": _r(s.get("avg_cloud_cover_pct"), 0),
+                    "temp_c":    _r(s.get("avg_temperature_c"), 1),
+                    # Skill score: improvement of calibrated over raw
+                    "skill_score": _skill(s.get("rmse_w"), s.get("rmse_raw_w")),
                 }
             )
 
+        # ── Aggregate statistics over valid days ──────────────────────────
+        valid = [s for s in summaries if s.get("mape_pct") is not None]
+        valid_raw = [s for s in summaries if s.get("mape_raw_pct") is not None]
+
+        mape_values = [s["mape_pct"] for s in valid]
+        mape_raw_values = [s["mape_raw_pct"] for s in valid_raw]
+        rmse_values = [s["rmse_w"] for s in valid if s.get("rmse_w")]
+        mbe_values  = [s["mbe_w"]  for s in valid if s.get("mbe_w") is not None]
+
+        # Week-over-week improvement: last 7d vs. previous 7d MAPE
+        recent7  = [s["mape_pct"] for s in valid[:7]  if s.get("mape_pct")]
+        prev7    = [s["mape_pct"] for s in valid[7:14] if s.get("mape_pct")]
+        wow_improvement = None
+        if recent7 and prev7:
+            avg_r = sum(recent7) / len(recent7)
+            avg_p = sum(prev7) / len(prev7)
+            if avg_p > 0:
+                wow_improvement = round((avg_p - avg_r) / avg_p * 100, 1)
+
+        aggregate = {
+            "n_days": len(valid),
+            "mean_mape_pct":     _r(sum(mape_values) / len(mape_values) if mape_values else None, 1),
+            "mean_mape_raw_pct": _r(sum(mape_raw_values) / len(mape_raw_values) if mape_raw_values else None, 1),
+            "mean_rmse_w":    _r(sum(rmse_values) / len(rmse_values) if rmse_values else None, 1),
+            "mean_mbe_w":     _r(sum(mbe_values) / len(mbe_values) if mbe_values else None, 1),
+            "p25_mape":  _r(M.percentile(mape_values, 25), 1),
+            "p50_mape":  _r(M.percentile(mape_values, 50), 1),
+            "p75_mape":  _r(M.percentile(mape_values, 75), 1),
+            "wow_improvement_pct": wow_improvement,
+            "overall_skill_score": _r(
+                M.skill_score(
+                    sum(rmse_values) / len(rmse_values) if rmse_values else None,
+                    sum(s["rmse_raw_w"] for s in valid_raw if s.get("rmse_raw_w")) /
+                    len([s for s in valid_raw if s.get("rmse_raw_w")]) if valid_raw else None,
+                ),
+                1,
+            ),
+        }
+
         return {
             "calibration_state": cal_state_row,
-            "metrics": metrics,
+            "aggregate": aggregate,
+            "daily": daily,
         }
+
+    @app.get("/api/accuracy/hourly")
+    async def api_accuracy_hourly(request: Request):
+        """Per-hour-of-day accuracy breakdown – how accurate is each hour."""
+        rows = await db.get_hourly_accuracy()
+        return {"hours": rows}
+
+    @app.get("/api/accuracy/weather")
+    async def api_accuracy_weather(request: Request):
+        """
+        Accuracy vs. cloud cover: bucket actual/forecast errors by cloud_cover_pct.
+        Returns list of {cloud_bucket, n_samples, mean_mape_pct, mean_error_wh}.
+        """
+        summaries = await db.get_recent_summaries(90)
+        buckets: dict[str, list[float]] = {
+            "0-20": [], "20-40": [], "40-60": [], "60-80": [], "80-100": [],
+        }
+        for s in summaries:
+            if s.get("avg_cloud_cover_pct") is None or s.get("mape_pct") is None:
+                continue
+            cc = s["avg_cloud_cover_pct"]
+            if   cc < 20:  buckets["0-20"].append(s["mape_pct"])
+            elif cc < 40:  buckets["20-40"].append(s["mape_pct"])
+            elif cc < 60:  buckets["40-60"].append(s["mape_pct"])
+            elif cc < 80:  buckets["60-80"].append(s["mape_pct"])
+            else:          buckets["80-100"].append(s["mape_pct"])
+
+        result = []
+        for label, vals in buckets.items():
+            result.append(
+                {
+                    "cloud_bucket": label + "%",
+                    "n_samples": len(vals),
+                    "mean_mape_pct": round(sum(vals) / len(vals), 1) if vals else None,
+                }
+            )
+        return {"cloud_buckets": result}
+
+
+def _r(value, decimals: int = 1) -> Optional[float]:
+    """Round a nullable float."""
+    return round(value, decimals) if value is not None else None
+
+
+def _skill(rmse_cal: Optional[float], rmse_raw: Optional[float]) -> Optional[float]:
+    if rmse_cal is None or rmse_raw is None or rmse_raw == 0:
+        return None
+    return round((1 - rmse_cal / rmse_raw) * 100, 1)
 
     @app.get("/api/status")
     async def api_status():

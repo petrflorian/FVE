@@ -13,6 +13,7 @@ from datetime import date, datetime, timedelta
 from typing import Optional
 
 from app.database import DatabaseManager
+from app.engine import metrics as M
 
 logger = logging.getLogger(__name__)
 
@@ -52,15 +53,20 @@ class CalibrationEngine:
         Full calibration cycle for target_date:
         1. Compute actual daily Wh via trapezoidal integration of power readings.
         2. Get raw forecast daily total.
-        3. Store ratio in daily_summary.
-        4. Recompute rolling factors from window.
-        5. Update calibration_state singleton in DB.
-        6. Return the new CalibrationState.
+        3. Compute hourly RMSE/MAE/MBE for both raw and calibrated forecasts.
+        4. Update hourly_accuracy table.
+        5. Recompute rolling correction factors.
+        6. Store full daily_summary with all metrics.
+        7. Return the new CalibrationState.
         """
         date_str = target_date.isoformat()
         logger.info("Running daily calibration for %s", date_str)
 
-        actual_wh = await self._compute_actual_wh(date_str)
+        actuals = await self.db.get_actuals_for_date(date_str)
+        forecast_slots = await self.db.get_forecast_for_date(date_str)
+        weather = await self.db.get_weather_for_date(date_str)
+
+        actual_wh = await self._compute_actual_wh_from_rows(actuals)
         forecast_wh = await self.db.get_latest_forecast_wh_day(date_str)
 
         ratio: Optional[float] = None
@@ -82,12 +88,35 @@ class CalibrationEngine:
 
         state = await self._recompute_state()
 
-        # Update daily_summary with new calibration info
+        # Compute per-slot metrics (actual vs. raw, actual vs. calibrated)
+        hourly_pairs = self._match_hourly(actuals, forecast_slots, state)
+        day_metrics_cal = self._compute_slot_metrics(
+            [p["actual_w"] for p in hourly_pairs],
+            [p["calibrated_w"] for p in hourly_pairs],
+        )
+        day_metrics_raw = self._compute_slot_metrics(
+            [p["actual_w"] for p in hourly_pairs],
+            [p["raw_w"] for p in hourly_pairs],
+        )
+
+        # Update hourly_accuracy table
+        await self._update_hourly_accuracy(hourly_pairs)
+
+        # Weather context averages
+        cloud_avg: Optional[float] = None
+        temp_avg: Optional[float] = None
+        if weather:
+            cloud_vals = [w["cloud_cover_pct"] for w in weather if w.get("cloud_cover_pct") is not None]
+            temp_vals  = [w["temperature_c"]   for w in weather if w.get("temperature_c")   is not None]
+            cloud_avg = sum(cloud_vals) / len(cloud_vals) if cloud_vals else None
+            temp_avg  = sum(temp_vals)  / len(temp_vals)  if temp_vals  else None
+
         calibrated_wh = (
             forecast_wh * state.global_correction
             if forecast_wh is not None
             else None
         )
+
         await self.db.upsert_daily_summary(
             {
                 "summary_date": date_str,
@@ -99,6 +128,19 @@ class CalibrationEngine:
                 "tod_morning_factor": state.tod_morning_factor,
                 "tod_midday_factor": state.tod_midday_factor,
                 "tod_afternoon_factor": state.tod_afternoon_factor,
+                # Calibrated metrics
+                "rmse_w":    day_metrics_cal.get("rmse"),
+                "mae_w":     day_metrics_cal.get("mae"),
+                "mbe_w":     day_metrics_cal.get("mbe"),
+                "mape_pct":  day_metrics_cal.get("mape"),
+                # Raw metrics (for skill score)
+                "rmse_raw_w":   day_metrics_raw.get("rmse"),
+                "mae_raw_w":    day_metrics_raw.get("mae"),
+                "mbe_raw_w":    day_metrics_raw.get("mbe"),
+                "mape_raw_pct": day_metrics_raw.get("mape"),
+                # Weather
+                "avg_cloud_cover_pct": cloud_avg,
+                "avg_temperature_c":   temp_avg,
             }
         )
 
@@ -206,11 +248,15 @@ class CalibrationEngine:
         }
 
     async def _compute_actual_wh(self, date_str: str) -> Optional[float]:
+        rows = await self.db.get_actuals_for_date(date_str)
+        return await self._compute_actual_wh_from_rows(rows)
+
+    @staticmethod
+    async def _compute_actual_wh_from_rows(rows: list[dict]) -> Optional[float]:
         """
         Compute actual Wh for a date using trapezoidal integration of power_w samples.
         Returns None if fewer than 2 readings are available.
         """
-        rows = await self.db.get_actuals_for_date(date_str)
         if len(rows) < 2:
             return None
 
@@ -226,6 +272,104 @@ class CalibrationEngine:
                 continue
 
         return max(0.0, total_wh)
+
+    def _match_hourly(
+        self,
+        actuals: list[dict],
+        forecast_slots: list[dict],
+        state: "CalibrationState",
+    ) -> list[dict]:
+        """
+        For each forecast slot, find the average actual power during that hour.
+        Returns list of {hour, actual_w, raw_w, calibrated_w}.
+        """
+        # Build hour → avg actual power
+        actuals_by_hour: dict[int, list[float]] = {}
+        for a in actuals:
+            try:
+                h = int(a["sampled_at"][11:13])
+                actuals_by_hour.setdefault(h, []).append(a["power_w"])
+            except (ValueError, TypeError, KeyError):
+                continue
+        avg_actual = {h: sum(vs) / len(vs) for h, vs in actuals_by_hour.items()}
+
+        pairs = []
+        for slot in forecast_slots:
+            try:
+                hour = int(slot["slot_time"][11:13])
+                raw_w = slot["watts"]
+            except (ValueError, TypeError, KeyError):
+                continue
+            if hour not in avg_actual:
+                continue
+            cal_w = self.apply_correction(hour, raw_w, state)
+            pairs.append(
+                {
+                    "hour": hour,
+                    "actual_w": avg_actual[hour],
+                    "raw_w": raw_w,
+                    "calibrated_w": cal_w,
+                }
+            )
+        return pairs
+
+    @staticmethod
+    def _compute_slot_metrics(actual: list[float], predicted: list[float]) -> dict:
+        return {
+            "rmse": M.rmse(actual, predicted),
+            "mae":  M.mae(actual, predicted),
+            "mbe":  M.mbe(actual, predicted),
+            "mape": M.mape(actual, predicted, min_actual=10.0),
+        }
+
+    async def _update_hourly_accuracy(self, hourly_pairs: list[dict]) -> None:
+        """
+        Recompute per-hour-of-day accuracy across ALL data and update DB.
+        This is a rolling aggregate – called once per day.
+        """
+        if not hourly_pairs:
+            return
+
+        # Group new data by hour
+        by_hour: dict[int, list[dict]] = {}
+        for p in hourly_pairs:
+            by_hour.setdefault(p["hour"], []).append(p)
+
+        # Fetch existing hourly_accuracy to merge sample counts (running stats)
+        existing = {
+            r["hour_of_day"]: r for r in await self.db.get_hourly_accuracy()
+        }
+
+        records = []
+        for hour, pairs in by_hour.items():
+            actual_list = [p["actual_w"] for p in pairs]
+            cal_list    = [p["calibrated_w"] for p in pairs]
+
+            ex = existing.get(hour, {})
+            n_new = len(pairs)
+            n_old = ex.get("sample_count", 0)
+            n_total = n_old + n_new
+
+            # Incremental mean update
+            def merge_mean(old_val, old_n, new_vals):
+                if old_val is None:
+                    return sum(new_vals) / len(new_vals) if new_vals else None
+                new_mean = sum(new_vals) / len(new_vals) if new_vals else old_val
+                return (old_val * old_n + new_mean * len(new_vals)) / (old_n + len(new_vals))
+
+            records.append(
+                {
+                    "hour_of_day":     hour,
+                    "sample_count":    n_total,
+                    "rmse_w":          M.rmse(actual_list, cal_list),
+                    "mae_w":           M.mae(actual_list, cal_list),
+                    "mbe_w":           M.mbe(actual_list, cal_list),
+                    "avg_actual_w":    merge_mean(ex.get("avg_actual_w"), n_old, actual_list),
+                    "avg_forecast_w":  merge_mean(ex.get("avg_forecast_w"), n_old, cal_list),
+                }
+            )
+
+        await self.db.upsert_hourly_accuracy(records)
 
     def apply_correction(
         self,

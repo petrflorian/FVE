@@ -32,6 +32,31 @@ CREATE TABLE IF NOT EXISTS actuals (
 );
 CREATE INDEX IF NOT EXISTS idx_actuals_sampled ON actuals(sampled_at);
 
+-- Hourly accuracy: RMSE/MAE/bias per hour-of-day, updated after daily calibration
+CREATE TABLE IF NOT EXISTS hourly_accuracy (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    hour_of_day     INTEGER NOT NULL CHECK (hour_of_day BETWEEN 0 AND 23),
+    sample_count    INTEGER NOT NULL DEFAULT 0,
+    rmse_w          REAL,
+    mae_w           REAL,
+    mbe_w           REAL,
+    avg_actual_w    REAL,
+    avg_forecast_w  REAL,
+    updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (hour_of_day)
+);
+
+-- Weather context from Open-Meteo (for post-hoc analysis and Phase 3 calibration)
+CREATE TABLE IF NOT EXISTS weather_hourly (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    slot_time        DATETIME NOT NULL UNIQUE,
+    cloud_cover_pct  REAL,
+    temperature_c    REAL,
+    ghi_wm2          REAL,
+    dni_wm2          REAL
+);
+CREATE INDEX IF NOT EXISTS idx_weather_slot ON weather_hourly(slot_time);
+
 CREATE TABLE IF NOT EXISTS daily_summary (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     summary_date            DATE NOT NULL UNIQUE,
@@ -43,6 +68,19 @@ CREATE TABLE IF NOT EXISTS daily_summary (
     tod_morning_factor      REAL,
     tod_midday_factor       REAL,
     tod_afternoon_factor    REAL,
+    -- Error metrics (calibrated forecast vs. actual)
+    rmse_w                  REAL,
+    mae_w                   REAL,
+    mbe_w                   REAL,
+    mape_pct                REAL,
+    -- Raw forecast metrics (for skill-score comparison)
+    rmse_raw_w              REAL,
+    mae_raw_w               REAL,
+    mbe_raw_w               REAL,
+    mape_raw_pct            REAL,
+    -- Weather context summary
+    avg_cloud_cover_pct     REAL,
+    avg_temperature_c       REAL,
     updated_at              DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_daily_summary_date ON daily_summary(summary_date);
@@ -183,11 +221,17 @@ class DatabaseManager:
                     (summary_date, forecast_wh_raw, forecast_wh_calibrated,
                      actual_wh, ratio, correction_factor,
                      tod_morning_factor, tod_midday_factor, tod_afternoon_factor,
+                     rmse_w, mae_w, mbe_w, mape_pct,
+                     rmse_raw_w, mae_raw_w, mbe_raw_w, mape_raw_pct,
+                     avg_cloud_cover_pct, avg_temperature_c,
                      updated_at)
                 VALUES
                     (:summary_date, :forecast_wh_raw, :forecast_wh_calibrated,
                      :actual_wh, :ratio, :correction_factor,
                      :tod_morning_factor, :tod_midday_factor, :tod_afternoon_factor,
+                     :rmse_w, :mae_w, :mbe_w, :mape_pct,
+                     :rmse_raw_w, :mae_raw_w, :mbe_raw_w, :mape_raw_pct,
+                     :avg_cloud_cover_pct, :avg_temperature_c,
                      CURRENT_TIMESTAMP)
                 ON CONFLICT(summary_date) DO UPDATE SET
                     forecast_wh_raw         = excluded.forecast_wh_raw,
@@ -198,6 +242,16 @@ class DatabaseManager:
                     tod_morning_factor      = excluded.tod_morning_factor,
                     tod_midday_factor       = excluded.tod_midday_factor,
                     tod_afternoon_factor    = excluded.tod_afternoon_factor,
+                    rmse_w                  = excluded.rmse_w,
+                    mae_w                   = excluded.mae_w,
+                    mbe_w                   = excluded.mbe_w,
+                    mape_pct                = excluded.mape_pct,
+                    rmse_raw_w              = excluded.rmse_raw_w,
+                    mae_raw_w               = excluded.mae_raw_w,
+                    mbe_raw_w               = excluded.mbe_raw_w,
+                    mape_raw_pct            = excluded.mape_raw_pct,
+                    avg_cloud_cover_pct     = excluded.avg_cloud_cover_pct,
+                    avg_temperature_c       = excluded.avg_temperature_c,
                     updated_at              = CURRENT_TIMESTAMP
                 """,
                 {
@@ -210,6 +264,16 @@ class DatabaseManager:
                     "tod_morning_factor": data.get("tod_morning_factor"),
                     "tod_midday_factor": data.get("tod_midday_factor"),
                     "tod_afternoon_factor": data.get("tod_afternoon_factor"),
+                    "rmse_w": data.get("rmse_w"),
+                    "mae_w": data.get("mae_w"),
+                    "mbe_w": data.get("mbe_w"),
+                    "mape_pct": data.get("mape_pct"),
+                    "rmse_raw_w": data.get("rmse_raw_w"),
+                    "mae_raw_w": data.get("mae_raw_w"),
+                    "mbe_raw_w": data.get("mbe_raw_w"),
+                    "mape_raw_pct": data.get("mape_raw_pct"),
+                    "avg_cloud_cover_pct": data.get("avg_cloud_cover_pct"),
+                    "avg_temperature_c": data.get("avg_temperature_c"),
                 },
             )
             await db.commit()
@@ -259,3 +323,63 @@ class DatabaseManager:
                 },
             )
             await db.commit()
+
+    # ── Hourly accuracy ────────────────────────────────────────────────────
+
+    async def upsert_hourly_accuracy(self, records: list[dict]) -> None:
+        """Bulk-upsert per-hour-of-day accuracy metrics."""
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.executemany(
+                """
+                INSERT INTO hourly_accuracy
+                    (hour_of_day, sample_count, rmse_w, mae_w, mbe_w,
+                     avg_actual_w, avg_forecast_w, updated_at)
+                VALUES
+                    (:hour_of_day, :sample_count, :rmse_w, :mae_w, :mbe_w,
+                     :avg_actual_w, :avg_forecast_w, CURRENT_TIMESTAMP)
+                ON CONFLICT(hour_of_day) DO UPDATE SET
+                    sample_count   = excluded.sample_count,
+                    rmse_w         = excluded.rmse_w,
+                    mae_w          = excluded.mae_w,
+                    mbe_w          = excluded.mbe_w,
+                    avg_actual_w   = excluded.avg_actual_w,
+                    avg_forecast_w = excluded.avg_forecast_w,
+                    updated_at     = CURRENT_TIMESTAMP
+                """,
+                records,
+            )
+            await db.commit()
+
+    async def get_hourly_accuracy(self) -> list[dict]:
+        async with aiosqlite.connect(DB_PATH) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                "SELECT * FROM hourly_accuracy ORDER BY hour_of_day"
+            )
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+    # ── Weather hourly ─────────────────────────────────────────────────────
+
+    async def upsert_weather_hourly(self, records: list[dict]) -> None:
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.executemany(
+                """
+                INSERT OR REPLACE INTO weather_hourly
+                    (slot_time, cloud_cover_pct, temperature_c, ghi_wm2, dni_wm2)
+                VALUES
+                    (:datetime, :cloud_cover_pct, :temperature_c, :ghi_wm2, :dni_wm2)
+                """,
+                records,
+            )
+            await db.commit()
+
+    async def get_weather_for_date(self, for_date: str) -> list[dict]:
+        async with aiosqlite.connect(DB_PATH) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                "SELECT * FROM weather_hourly WHERE date(slot_time) = ? ORDER BY slot_time",
+                (for_date,),
+            )
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]

@@ -18,6 +18,7 @@ import uvicorn
 
 from app.clients.forecast_solar import ForecastSolarClient
 from app.clients.ha_client import HAClient
+from app.clients.open_meteo import OpenMeteoClient
 from app.config import load_config
 from app.database import DatabaseManager
 from app.engine.calibration import CalibrationEngine
@@ -58,12 +59,15 @@ async def main() -> None:
     # 2. Service clients
     forecast_client = ForecastSolarClient(config)
     ha_client = HAClient(config)
+    weather_client = OpenMeteoClient(config)
 
     # 3. Calibration engine
     calibration = CalibrationEngine(db, window_days=config.calibration_window_days)
 
     # 4. Scheduler
-    scheduler = JobScheduler(config, db, forecast_client, ha_client, calibration)
+    scheduler = JobScheduler(
+        config, db, forecast_client, ha_client, calibration, weather_client
+    )
     scheduler.start()
 
     # Optional: verify HA connection at startup

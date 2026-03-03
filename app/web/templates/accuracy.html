@@ -1,139 +1,421 @@
 {% extends "base.html" %}
+{% set active = 'accuracy' %}
 {% block title %}Přesnost – FVE Solar Forecast{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <h1>Přesnost předpovědí</h1>
+  <p class="subtitle">Vyhodnocení kvality prognózy a efektivity kalibrace</p>
 </div>
 
-<div class="card">
-  <h2>Stav kalibrace</h2>
-  <div class="cal-grid">
-    <div class="cal-item">
-      <div class="cal-label">Fáze</div>
-      <div class="cal-value phase-{{ cal.phase }}">{{ cal.phase }}</div>
-    </div>
-    <div class="cal-item">
-      <div class="cal-label">Globální korekce</div>
-      <div class="cal-value">{{ "%.3f"|format(cal.global_correction) }}×</div>
-    </div>
-    <div class="cal-item">
-      <div class="cal-label">Dnů dat</div>
-      <div class="cal-value">{{ cal.days_of_data }}</div>
-    </div>
-    {% if cal.phase == 'phase2' %}
-    <div class="cal-item">
-      <div class="cal-label">Ráno (6–11h)</div>
-      <div class="cal-value">{{ "%.3f"|format(cal.tod_morning_factor) }}×</div>
-    </div>
-    <div class="cal-item">
-      <div class="cal-label">Poledne (11–15h)</div>
-      <div class="cal-value">{{ "%.3f"|format(cal.tod_midday_factor) }}×</div>
-    </div>
-    <div class="cal-item">
-      <div class="cal-label">Odpoledne (15–20h)</div>
-      <div class="cal-value">{{ "%.3f"|format(cal.tod_afternoon_factor) }}×</div>
-    </div>
-    {% endif %}
+<!-- ── 1. KPI panel ──────────────────────────────────────────────────── -->
+<div class="kpi-row" id="kpi-row">
+  <div class="kpi">
+    <div class="kpi-label">Průměrná chyba (MAPE)</div>
+    <div class="kpi-value" id="kpi-mape">—</div>
+    <div class="kpi-sub" id="kpi-mape-raw"></div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Zlepšení kalibrace</div>
+    <div class="kpi-value" id="kpi-skill">—</div>
+    <div class="kpi-sub">RMSE cal. vs. raw</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Průměrná systematická chyba (MBE)</div>
+    <div class="kpi-value" id="kpi-mbe">—</div>
+    <div class="kpi-sub">+ = nadodhad, − = pododhad</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Týden vs. předtýden</div>
+    <div class="kpi-value" id="kpi-wow">—</div>
+    <div class="kpi-sub">MAPE posl. 7d vs. 7d před</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Fáze kalibrace</div>
+    <div class="kpi-value" id="kpi-phase">—</div>
+    <div class="kpi-sub" id="kpi-days"></div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Korekční faktor</div>
+    <div class="kpi-value" id="kpi-factor">—</div>
+    <div class="kpi-sub">global × global</div>
   </div>
 </div>
 
+<!-- ── 2. Faktory Phase 2 ─────────────────────────────────────────────── -->
+<div class="card" id="tod-card" style="display:none">
+  <h2>Korekce dle části dne (Phase 2)</h2>
+  <div class="tod-grid">
+    <div class="tod-item">
+      <div class="tod-icon">🌅</div>
+      <div class="tod-label">Ráno (6–11h)</div>
+      <div class="tod-value" id="tod-morning">—</div>
+    </div>
+    <div class="tod-item">
+      <div class="tod-icon">☀️</div>
+      <div class="tod-label">Poledne (11–15h)</div>
+      <div class="tod-value" id="tod-midday">—</div>
+    </div>
+    <div class="tod-item">
+      <div class="tod-icon">🌇</div>
+      <div class="tod-label">Odpoledne (15–20h)</div>
+      <div class="tod-value" id="tod-afternoon">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 3. MAPE trend + raw vs. calibrated ───────────────────────────── -->
+<div class="card">
+  <h2>Trend MAPE – raw vs. kalibrovaná předpověď</h2>
+  <p class="chart-hint">Kalibrovaná by měla postupně klesat pod raw. 7denní klouzavý průměr je plná čára.</p>
+  <canvas id="mapeTrendChart" height="90"></canvas>
+</div>
+
+<!-- ── 4. Korekční faktor v čase ─────────────────────────────────────── -->
 <div class="card">
   <h2>Vývoj korekčního faktoru</h2>
-  <canvas id="factorChart" height="80"></canvas>
+  <p class="chart-hint">Ideálně konverguje k 1,0. Velké odchylky = systematická chyba forecast.solar pro vaši lokalitu.</p>
+  <canvas id="factorChart" height="70"></canvas>
 </div>
 
+<!-- ── 5. Chyba po hodinách dne ─────────────────────────────────────── -->
 <div class="card">
-  <h2>Denní přesnost (posledních 60 dní)</h2>
-  <canvas id="mapeChart" height="80"></canvas>
+  <h2>Průměrná chyba dle hodiny dne</h2>
+  <p class="chart-hint">Která hodina má největší systematickou chybu (MBE)? Záporná = podceněná výroba.</p>
+  <canvas id="hourlyChart" height="80"></canvas>
 </div>
 
+<!-- ── 6. Přesnost vs. oblačnost ─────────────────────────────────────── -->
 <div class="card">
+  <h2>Přesnost dle oblačnosti</h2>
+  <p class="chart-hint">Jak moc se zvyšuje chyba s oblačností? Data z Open-Meteo (vyžaduje alespoň 1 den dat).</p>
+  <canvas id="cloudChart" height="70"></canvas>
+</div>
+
+<!-- ── 7. Histogram chyb ─────────────────────────────────────────────── -->
+<div class="card">
+  <h2>Distribuce denní chyby (kWh)</h2>
+  <p class="chart-hint">Symetrický histogram kolem 0 = bez systematické chyby. Posun doprava = nadodhad.</p>
+  <canvas id="histogramChart" height="70"></canvas>
+</div>
+
+<!-- ── 8. Detailní tabulka ───────────────────────────────────────────── -->
+<div class="card">
+  <h2>Denní záznamy (posledních 60 dní)</h2>
+  <div class="table-wrap">
   <table class="data-table">
     <thead>
       <tr>
         <th>Datum</th>
-        <th>Poměr (actual/forecast)</th>
-        <th>Korekční faktor</th>
-        <th>Chyba (Wh)</th>
-        <th>MAPE (%)</th>
+        <th>Oblak. %</th>
+        <th>Poměr</th>
+        <th>MAPE cal.</th>
+        <th>MAPE raw</th>
+        <th>Skill score</th>
+        <th>MBE (W)</th>
+        <th>RMSE (W)</th>
       </tr>
     </thead>
     <tbody id="acc-tbody">
-      <tr><td colspan="5" class="loading">Načítám data…</td></tr>
+      <tr><td colspan="8" class="loading">Načítám data…</td></tr>
     </tbody>
   </table>
+  </div>
 </div>
 
 <script>
 const BASE = "{{ base }}";
 
-fetch(`${BASE}/api/accuracy`)
-  .then(r => r.json())
-  .then(data => {
-    const metrics = [...data.metrics].reverse();  // chronological order
+// Utility: round helper
+const rnd = (v, d=1) => v != null ? +v.toFixed(d) : null;
+const fmtPct = v => v != null ? v.toFixed(1) + ' %' : '—';
+const fmtW   = v => v != null ? (v > 0 ? '+' : '') + v.toFixed(0) + ' W' : '—';
 
-    // Factor trend chart
-    const factorCtx = document.getElementById('factorChart');
-    new Chart(factorCtx, {
-      type: 'line',
-      data: {
-        labels: metrics.map(m => m.date),
-        datasets: [{
-          label: 'Globální korekční faktor',
-          data: metrics.map(m => m.correction_factor),
+// Moving average
+function movAvg(arr, w) {
+  return arr.map((_, i) => {
+    const window = arr.slice(Math.max(0, i - w + 1), i + 1).filter(v => v != null);
+    return window.length ? window.reduce((a, b) => a + b, 0) / window.length : null;
+  });
+}
+
+// Build histogram buckets
+function makeHistogram(values, binWidth=0.1) {
+  if (!values.length) return { labels: [], data: [] };
+  const min = Math.min(...values), max = Math.max(...values);
+  const bins = {};
+  values.forEach(v => {
+    const b = Math.floor(v / binWidth) * binWidth;
+    bins[b] = (bins[b] || 0) + 1;
+  });
+  const labels = Object.keys(bins).sort((a,b) => +a - +b).map(b => (+b).toFixed(2));
+  const data   = labels.map(l => bins[parseFloat(l)]);
+  return { labels, data };
+}
+
+Promise.all([
+  fetch(`${BASE}/api/accuracy`).then(r => r.json()),
+  fetch(`${BASE}/api/accuracy/hourly`).then(r => r.json()),
+  fetch(`${BASE}/api/accuracy/weather`).then(r => r.json()),
+]).then(([acc, hourly, weather]) => {
+
+  const agg = acc.aggregate;
+  const cal = acc.calibration_state;
+  const daily = [...acc.daily].reverse(); // chronological
+
+  // ── 1. KPI ────────────────────────────────────────────────────
+  document.getElementById('kpi-mape').textContent = fmtPct(agg.mean_mape_pct);
+  document.getElementById('kpi-mape-raw').textContent = agg.mean_mape_raw_pct != null
+    ? `raw: ${agg.mean_mape_raw_pct.toFixed(1)} %`
+    : 'raw: —';
+
+  const skillEl = document.getElementById('kpi-skill');
+  skillEl.textContent = agg.overall_skill_score != null ? agg.overall_skill_score.toFixed(1) + ' %' : '—';
+  skillEl.className = 'kpi-value ' + (agg.overall_skill_score > 0 ? 'ok' : 'warn');
+
+  const mbeEl = document.getElementById('kpi-mbe');
+  mbeEl.textContent = fmtW(agg.mean_mbe_w);
+  mbeEl.className = 'kpi-value ' + (Math.abs(agg.mean_mbe_w || 0) < 50 ? 'ok' : 'warn');
+
+  const wowEl = document.getElementById('kpi-wow');
+  wowEl.textContent = agg.wow_improvement_pct != null
+    ? (agg.wow_improvement_pct > 0 ? '+' : '') + agg.wow_improvement_pct.toFixed(1) + ' %'
+    : '—';
+  wowEl.className = 'kpi-value ' + ((agg.wow_improvement_pct || 0) >= 0 ? 'ok' : 'warn');
+
+  document.getElementById('kpi-phase').textContent = cal.phase || '—';
+  document.getElementById('kpi-phase').className = 'kpi-value phase-' + cal.phase;
+  document.getElementById('kpi-days').textContent = `${cal.days_of_data || 0} dní dat`;
+  document.getElementById('kpi-factor').textContent = cal.global_correction != null
+    ? cal.global_correction.toFixed(3) + '×'
+    : '—';
+
+  // ── Phase 2 ToD faktory ───────────────────────────────────────
+  if (cal.phase === 'phase2') {
+    document.getElementById('tod-card').style.display = '';
+    document.getElementById('tod-morning').textContent   = cal.tod_morning_factor?.toFixed(3) + '×';
+    document.getElementById('tod-midday').textContent    = cal.tod_midday_factor?.toFixed(3) + '×';
+    document.getElementById('tod-afternoon').textContent = cal.tod_afternoon_factor?.toFixed(3) + '×';
+  }
+
+  // ── 3. MAPE trend ─────────────────────────────────────────────
+  const labels   = daily.map(d => d.date);
+  const mapeCal  = daily.map(d => d.mape_pct);
+  const mapeRaw  = daily.map(d => d.mape_raw_pct);
+  const mapeMa7  = movAvg(mapeCal, 7);
+  const mapeRawMa7 = movAvg(mapeRaw, 7);
+
+  new Chart(document.getElementById('mapeTrendChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'MAPE kalibrovaná (denně)',
+          data: mapeCal,
+          backgroundColor: 'rgba(52,152,219,0.25)',
+          borderColor: 'rgba(52,152,219,0.5)',
+          borderWidth: 1,
+          order: 3,
+        },
+        {
+          label: 'MAPE raw (denně)',
+          data: mapeRaw,
+          backgroundColor: 'rgba(231,76,60,0.15)',
+          borderColor: 'rgba(231,76,60,0.4)',
+          borderWidth: 1,
+          order: 4,
+        },
+        {
+          label: 'MA7 kalibrovaná',
+          data: mapeMa7,
+          type: 'line',
           borderColor: '#3498db',
-          backgroundColor: 'rgba(52,152,219,0.1)',
-          fill: true,
-          tension: 0.3,
-        }]
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: false,
+          tension: 0.4,
+          order: 1,
+        },
+        {
+          label: 'MA7 raw',
+          data: mapeRawMa7,
+          type: 'line',
+          borderColor: '#e74c3c',
+          borderWidth: 2,
+          pointRadius: 0,
+          borderDash: [4, 4],
+          fill: false,
+          tension: 0.4,
+          order: 2,
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: { title: { display: true, text: 'MAPE (%)' }, beginAtZero: true }
+      }
+    }
+  });
+
+  // ── 4. Korekční faktor ─────────────────────────────────────────
+  new Chart(document.getElementById('factorChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Globální korekční faktor',
+        data: daily.map(d => d.correction_factor),
+        borderColor: '#f39c12',
+        backgroundColor: 'rgba(243,156,18,0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' },
+        annotation: { annotations: { line1: {
+          type: 'line', yMin: 1, yMax: 1,
+          borderColor: '#e74c3c', borderWidth: 1, borderDash: [4,4]
+        }}}
       },
-      options: {
-        responsive: true,
-        plugins: { legend: { position: 'top' } },
-        scales: {
-          y: {
-            title: { display: true, text: 'Faktor' },
-            min: 0.5, max: 1.5,
-            grid: { color: ctx => ctx.tick.value === 1 ? '#e74c3c' : '#e0e0e0' }
-          }
+      scales: {
+        y: {
+          title: { display: true, text: 'Faktor' },
+          min: 0.4, max: 1.6,
+          ticks: { callback: v => v.toFixed(2) + '×' },
         }
       }
-    });
+    }
+  });
 
-    // MAPE chart
-    const mapeCtx = document.getElementById('mapeChart');
-    new Chart(mapeCtx, {
-      type: 'bar',
-      data: {
-        labels: metrics.map(m => m.date),
-        datasets: [{
-          label: 'MAPE (%)',
-          data: metrics.map(m => m.mape_pct),
-          backgroundColor: metrics.map(m => (m.mape_pct || 0) < 20 ? 'rgba(39,174,96,0.6)' : 'rgba(231,76,60,0.6)'),
+  // ── 5. Hodinová chyba ─────────────────────────────────────────
+  const hrs = hourly.hours;
+  new Chart(document.getElementById('hourlyChart'), {
+    type: 'bar',
+    data: {
+      labels: hrs.map(h => `${String(h.hour_of_day).padStart(2,'0')}:00`),
+      datasets: [
+        {
+          label: 'MBE (W) – systematická chyba',
+          data: hrs.map(h => h.mbe_w),
+          backgroundColor: hrs.map(h => (h.mbe_w || 0) >= 0 ? 'rgba(231,76,60,0.6)' : 'rgba(39,174,96,0.6)'),
           borderWidth: 1,
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: { legend: { position: 'top' } },
-        scales: { y: { title: { display: true, text: 'Chyba (%)' }, beginAtZero: true } }
+          order: 1,
+        },
+        {
+          label: 'RMSE (W) – celková chyba',
+          data: hrs.map(h => h.rmse_w),
+          type: 'line',
+          borderColor: '#3498db',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 3,
+          tension: 0.3,
+          order: 2,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: { title: { display: true, text: 'Chyba (W)' } }
       }
-    });
+    }
+  });
 
-    // Table
-    const tbody = document.getElementById('acc-tbody');
-    tbody.innerHTML = '';
-    [...metrics].reverse().forEach(m => {
-      tbody.innerHTML += `<tr>
-        <td>${m.date}</td>
-        <td>${m.ratio != null ? m.ratio.toFixed(3) : '—'}</td>
-        <td>${m.correction_factor != null ? m.correction_factor.toFixed(3) : '—'}</td>
-        <td>${m.error_wh != null ? (m.error_wh > 0 ? '+' : '') + m.error_wh : '—'}</td>
-        <td class="${(m.mape_pct || 99) < 20 ? 'ok' : 'warn'}">${m.mape_pct != null ? m.mape_pct.toFixed(1) + ' %' : '—'}</td>
-      </tr>`;
-    });
-  })
-  .catch(err => console.error('Accuracy fetch error:', err));
+  // ── 6. Přesnost vs. oblačnost ─────────────────────────────────
+  const buckets = weather.cloud_buckets;
+  new Chart(document.getElementById('cloudChart'), {
+    type: 'bar',
+    data: {
+      labels: buckets.map(b => b.cloud_bucket),
+      datasets: [{
+        label: 'Průměrná MAPE (%)',
+        data: buckets.map(b => b.mean_mape_pct),
+        backgroundColor: buckets.map((_, i) => `rgba(${52 + i*40},${152 - i*25},219,0.6)`),
+        borderWidth: 1,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: { callbacks: { label: c => `${c.parsed.y?.toFixed(1)} % (n=${buckets[c.dataIndex].n_samples})` } }
+      },
+      scales: {
+        x: { title: { display: true, text: 'Oblačnost' } },
+        y: { title: { display: true, text: 'MAPE (%)' }, beginAtZero: true }
+      }
+    }
+  });
+
+  // ── 7. Histogram chyb ─────────────────────────────────────────
+  const errors_kwh = daily
+    .filter(d => d.mbe_w != null)
+    .map(d => d.mbe_w / 1000);  // W → kWh approximation
+
+  // Use actual_wh – forecast_wh from daily summaries
+  const errDiffs = acc.daily
+    .filter(d => d.mape_pct != null && d.correction_factor != null)
+    .map(d => {
+      const ratio = d.ratio;
+      return ratio != null ? (ratio - 1) * 100 : null;
+    })
+    .filter(v => v != null);
+
+  const hist = makeHistogram(errDiffs, 5);
+  new Chart(document.getElementById('histogramChart'), {
+    type: 'bar',
+    data: {
+      labels: hist.labels.map(l => `${+l > 0 ? '+' : ''}${l} %`),
+      datasets: [{
+        label: 'Počet dní',
+        data: hist.data,
+        backgroundColor: hist.labels.map(l =>
+          parseFloat(l) >= 0 ? 'rgba(231,76,60,0.6)' : 'rgba(39,174,96,0.6)'
+        ),
+        borderWidth: 1,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        x: { title: { display: true, text: 'Odchylka actual vs. forecast (%)' } },
+        y: { title: { display: true, text: 'Počet dní' }, beginAtZero: true, ticks: { stepSize: 1 } }
+      }
+    }
+  });
+
+  // ── 8. Tabulka ────────────────────────────────────────────────
+  const tbody = document.getElementById('acc-tbody');
+  tbody.innerHTML = '';
+  [...acc.daily].reverse().forEach(d => {
+    const skill = d.skill_score;
+    const mapeOk = (d.mape_pct || 99) < 20;
+    tbody.innerHTML += `<tr>
+      <td>${d.date}</td>
+      <td>${d.cloud_pct != null ? d.cloud_pct + ' %' : '—'}</td>
+      <td>${d.ratio != null ? d.ratio.toFixed(3) : '—'}</td>
+      <td class="${mapeOk ? 'ok' : 'warn'}">${fmtPct(d.mape_pct)}</td>
+      <td>${fmtPct(d.mape_raw_pct)}</td>
+      <td class="${skill > 0 ? 'ok' : 'warn'}">${skill != null ? skill.toFixed(1) + ' %' : '—'}</td>
+      <td class="${Math.abs(d.mbe_w||999) < 50 ? 'ok' : 'warn'}">${fmtW(d.mbe_w)}</td>
+      <td>${d.rmse_w != null ? d.rmse_w.toFixed(0) + ' W' : '—'}</td>
+    </tr>`;
+  });
+
+}).catch(err => {
+  console.error('Accuracy load error:', err);
+});
 </script>
 {% endblock %}

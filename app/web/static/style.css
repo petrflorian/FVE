@@ -148,8 +148,45 @@ footer {
 }
 footer a { color: var(--muted); }
 
+/* ── KPI row ── */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.kpi {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  padding: 16px;
+  text-align: center;
+}
+.kpi-label { font-size: 0.75rem; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+.kpi-value { font-size: 1.6rem; font-weight: 700; margin-bottom: 2px; }
+.kpi-sub   { font-size: 0.75rem; color: var(--muted); }
+
+/* ── ToD factors ── */
+.tod-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.tod-item { background: var(--bg); border-radius: var(--radius); padding: 16px; text-align: center; }
+.tod-icon  { font-size: 1.5rem; margin-bottom: 4px; }
+.tod-label { font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+.tod-value { font-size: 1.4rem; font-weight: 700; }
+
+/* ── Chart hints ── */
+.chart-hint { font-size: 0.82rem; color: var(--muted); margin-bottom: 12px; margin-top: -8px; }
+
+/* ── Table wrap (horizontal scroll on mobile) ── */
+.table-wrap { overflow-x: auto; }
+
 /* ── Responsive ── */
 @media (max-width: 600px) {
   header { flex-direction: column; align-items: flex-start; padding: 10px 16px; }
   main { padding: 12px; }
+  .tod-grid { grid-template-columns: 1fr; }
+  .kpi-row  { grid-template-columns: repeat(2, 1fr); }
 }
