@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Týden – FVE Solar Forecast{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Přehled 14 dní</h1>
+  <p class="subtitle">Posledních 7 dní + předpověď na 7 dní dopředu</p>
+</div>
+
+<div class="card">
+  <canvas id="weekChart" height="80"></canvas>
+</div>
+
+<div class="card">
+  <table class="data-table" id="week-table">
+    <thead>
+      <tr>
+        <th>Datum</th>
+        <th>Předpověď (korigovaná)</th>
+        <th>Skutečnost</th>
+        <th>Chyba</th>
+      </tr>
+    </thead>
+    <tbody id="week-tbody">
+      <tr><td colspan="4" class="loading">Načítám data…</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+const BASE = "{{ base }}";
+
+fetch(`${BASE}/api/forecast/week`)
+  .then(r => r.json())
+  .then(data => {
+    const days = data.days;
+    const today = data.today;
+
+    // Chart
+    const ctx = document.getElementById('weekChart');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: days.map(d => d.label),
+        datasets: [
+          {
+            label: 'Předpověď (kWh)',
+            data: days.map(d => d.forecast_cal_wh != null ? (d.forecast_cal_wh / 1000).toFixed(2) : null),
+            backgroundColor: days.map(d => d.is_future ? 'rgba(243,156,18,0.4)' : 'rgba(243,156,18,0.7)'),
+            borderColor: '#f39c12',
+            borderWidth: 1,
+          },
+          {
+            label: 'Skutečnost (kWh)',
+            data: days.map(d => d.actual_wh != null ? (d.actual_wh / 1000).toFixed(2) : null),
+            backgroundColor: 'rgba(39,174,96,0.7)',
+            borderColor: '#27ae60',
+            borderWidth: 1,
+          },
+        ]
+      },
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { position: 'top' } },
+        scales: {
+          y: { title: { display: true, text: 'Výroba (kWh)' }, beginAtZero: true }
+        }
+      }
+    });
+
+    // Table
+    const tbody = document.getElementById('week-tbody');
+    tbody.innerHTML = '';
+    [...days].reverse().forEach(d => {
+      const isToday = d.date === today;
+      const forecast = d.forecast_cal_wh != null ? (d.forecast_cal_wh / 1000).toFixed(2) + ' kWh' : '—';
+      const actual   = d.actual_wh != null ? (d.actual_wh / 1000).toFixed(2) + ' kWh' : (d.is_future ? '' : '—');
+      let error = '';
+      if (d.actual_wh != null && d.forecast_cal_wh != null && d.forecast_cal_wh > 0) {
+        const pct = ((d.actual_wh - d.forecast_cal_wh) / d.forecast_cal_wh * 100).toFixed(1);
+        error = `<span class="${Math.abs(pct) < 15 ? 'ok' : 'warn'}">${pct > 0 ? '+' : ''}${pct} %</span>`;
+      }
+      const tr = document.createElement('tr');
+      if (isToday) tr.className = 'today-row';
+      if (d.is_future) tr.className = 'future-row';
+      tr.innerHTML = `<td>${d.date}${isToday ? ' <b>(dnes)</b>' : ''}</td><td>${forecast}</td><td>${actual}</td><td>${error}</td>`;
+      tbody.appendChild(tr);
+    });
+  })
+  .catch(err => console.error('Week fetch error:', err));
+</script>
+{% endblock %}

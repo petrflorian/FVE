@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}FVE Solar Forecast{% endblock %}</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="{{ base }}/static/style.css">
+</head>
+<body>
+  <header>
+    <div class="logo">☀️ FVE Solar Forecast</div>
+    <nav>
+      <a href="{{ base }}/" {% if active == 'today' %}class="active"{% endif %}>Dnes</a>
+      <a href="{{ base }}/week" {% if active == 'week' %}class="active"{% endif %}>Týden</a>
+      <a href="{{ base }}/accuracy" {% if active == 'accuracy' %}class="active"{% endif %}>Přesnost</a>
+    </nav>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <footer>
+    <small>forecast.solar · HA Solar Assistant · <a href="{{ base }}/api/status">API status</a></small>
+  </footer>
+</body>
+</html>

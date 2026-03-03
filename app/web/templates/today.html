@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Dnes – FVE Solar Forecast{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Dnešní výroba</h1>
+  <div class="badges">
+    <span class="badge phase-{{ phase }}">Fáze: {{ phase }}</span>
+    <span class="badge">Korekce: {{ "%.2f"|format(global_correction) }}×</span>
+    <span class="badge">Dnů dat: {{ days_of_data }}</span>
+  </div>
+</div>
+
+<div class="card">
+  <canvas id="todayChart" height="100"></canvas>
+</div>
+
+<div class="summary-grid" id="summary-grid">
+  <div class="summary-item">
+    <div class="summary-label">Předpověď (korigovaná)</div>
+    <div class="summary-value" id="sum-forecast">—</div>
+  </div>
+  <div class="summary-item">
+    <div class="summary-label">Skutečná výroba (dnes)</div>
+    <div class="summary-value" id="sum-actual">—</div>
+  </div>
+  <div class="summary-item">
+    <div class="summary-label">Chyba</div>
+    <div class="summary-value" id="sum-error">—</div>
+  </div>
+</div>
+
+<script>
+const BASE = "{{ base }}";
+
+fetch(`${BASE}/api/forecast/today`)
+  .then(r => r.json())
+  .then(data => {
+    const slots = data.slots;
+    const labels = slots.map(s => s.time);
+
+    // Chart
+    const ctx = document.getElementById('todayChart');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Předpověď (raw)',
+            data: slots.map(s => s.forecast_raw_w),
+            backgroundColor: 'rgba(180,180,180,0.4)',
+            borderColor: '#aaa',
+            borderWidth: 1,
+            order: 3,
+          },
+          {
+            label: 'Předpověď (korigovaná)',
+            data: slots.map(s => s.forecast_calibrated_w),
+            backgroundColor: 'rgba(243,156,18,0.5)',
+            borderColor: '#f39c12',
+            borderWidth: 2,
+            order: 2,
+          },
+          {
+            label: 'Skutečnost',
+            data: slots.map(s => s.actual_w),
+            backgroundColor: 'rgba(39,174,96,0.7)',
+            borderColor: '#27ae60',
+            borderWidth: 2,
+            order: 1,
+          },
+        ]
+      },
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top' },
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y != null ? ctx.parsed.y.toFixed(0) + ' W' : '—'}`
+            }
+          }
+        },
+        scales: {
+          y: { title: { display: true, text: 'Výkon (W)' }, beginAtZero: true }
+        }
+      }
+    });
+
+    // Summary bar
+    const forecastTotal = slots.reduce((s, x) => s + (x.forecast_calibrated_w || 0), 0) / 4 / 1000;
+    const actualTotal = slots.reduce((s, x) => s + (x.actual_w || 0), 0) / 4 / 1000;
+    const actualSlots = slots.filter(s => s.actual_w != null).length;
+
+    document.getElementById('sum-forecast').textContent = forecastTotal.toFixed(2) + ' kWh';
+    document.getElementById('sum-actual').textContent = actualSlots > 0
+      ? actualTotal.toFixed(2) + ' kWh'
+      : '(zatím žádná data)';
+
+    if (actualSlots > 0 && forecastTotal > 0) {
+      const err = ((actualTotal - forecastTotal) / forecastTotal * 100).toFixed(1);
+      const el = document.getElementById('sum-error');
+      el.textContent = (err > 0 ? '+' : '') + err + ' %';
+      el.className = 'summary-value ' + (Math.abs(err) < 15 ? 'ok' : 'warn');
+    }
+  })
+  .catch(err => console.error('Forecast fetch error:', err));
+</script>
+{% endblock %}
