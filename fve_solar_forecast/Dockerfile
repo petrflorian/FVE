@@ -30,4 +30,4 @@ LABEL \
     io.hass.type="addon" \
     io.hass.version="${BUILD_VERSION}"
 
-CMD ["/run.sh"]
+ENTRYPOINT ["/init"]
