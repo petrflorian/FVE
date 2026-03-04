@@ -19,6 +19,10 @@ class AppConfig(BaseModel):
     ha_url: str = "http://supervisor/core"
     ha_sensor_power: str = "sensor.solar_assistant_pv_power"
     ha_sensor_energy: str = "sensor.solar_assistant_pv_energy_today"
+    ha_sensor_battery_soc: Optional[str] = None
+    ha_sensor_battery_power: Optional[str] = None
+    ha_sensor_grid_power: Optional[str] = None
+    ha_sensor_load_power: Optional[str] = None
     calibration_window_days: int = Field(default=14, ge=7, le=90)
     log_level: str = "info"
 

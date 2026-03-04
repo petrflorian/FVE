@@ -71,6 +71,36 @@ class HAClient:
             logger.debug("get_energy_kwh failed: %s", exc)
             return None
 
+    async def _get_optional_sensor_w(self, sensor_id: Optional[str]) -> Optional[float]:
+        """Generic helper: fetch a sensor value as float. Returns None if not configured or on error."""
+        if not sensor_id:
+            return None
+        try:
+            state = await self.get_state(sensor_id)
+            value = state.get("state", "unavailable")
+            if value in ("unavailable", "unknown", ""):
+                return None
+            return float(value)
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
+            logger.debug("_get_optional_sensor_w(%s) failed: %s", sensor_id, exc)
+            return None
+
+    async def get_battery_soc_pct(self) -> Optional[float]:
+        """Return battery state of charge in percent (0–100). None if not configured."""
+        return await self._get_optional_sensor_w(self.config.ha_sensor_battery_soc)
+
+    async def get_battery_power_w(self) -> Optional[float]:
+        """Return battery power in Watts. Positive = charging, negative = discharging."""
+        return await self._get_optional_sensor_w(self.config.ha_sensor_battery_power)
+
+    async def get_grid_power_w(self) -> Optional[float]:
+        """Return grid power in Watts. Positive = import from grid, negative = export to grid."""
+        return await self._get_optional_sensor_w(self.config.ha_sensor_grid_power)
+
+    async def get_load_power_w(self) -> Optional[float]:
+        """Return home load/consumption in Watts."""
+        return await self._get_optional_sensor_w(self.config.ha_sensor_load_power)
+
     async def check_connection(self) -> bool:
         """
         Verify HA API connectivity.

@@ -29,6 +29,10 @@ options:
   ha_url: "http://supervisor/core"
   ha_sensor_power: "sensor.solar_assistant_pv_power"
   ha_sensor_energy: "sensor.solar_assistant_pv_energy_today"
+  ha_sensor_battery_soc: ""
+  ha_sensor_battery_power: ""
+  ha_sensor_grid_power: ""
+  ha_sensor_load_power: ""
   calibration_window_days: 14
   log_level: "info"
 
@@ -42,5 +46,9 @@ schema:
   ha_url: "str"
   ha_sensor_power: "str"
   ha_sensor_energy: "str"
+  ha_sensor_battery_soc: "str?"
+  ha_sensor_battery_power: "str?"
+  ha_sensor_grid_power: "str?"
+  ha_sensor_load_power: "str?"
   calibration_window_days: "int(7,90)"
   log_level: "list(debug|info|warning|error)"

@@ -1,12 +1,13 @@
 """
 FastAPI application factory.
 
-Serves three HTML pages (/, /week, /accuracy) and a JSON API (/api/*).
+Serves HTML pages (/, /week, /accuracy, /flow) and a JSON API (/api/*).
 Handles HA Ingress correctly via X-Ingress-Path middleware.
 """
 
+import asyncio
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -15,6 +16,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from app.clients.ha_client import HAClient
 from app.database import DatabaseManager
 from app.engine.calibration import CalibrationEngine, CalibrationState
 from app.engine import metrics as M
@@ -25,11 +27,51 @@ TEMPLATES_DIR = Path(__file__).parent / "templates"
 STATIC_DIR = Path(__file__).parent / "static"
 
 
-def create_app(db: DatabaseManager, calibration: CalibrationEngine) -> FastAPI:
+def create_app(db: DatabaseManager, calibration: CalibrationEngine, ha_client: HAClient) -> FastAPI:
     app = FastAPI(title="FVE Solar Forecast", docs_url=None, redoc_url=None)
 
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+    # ── Real-time energy flow cache (refreshed every 2 s) ────────────────
+    flow_cache: dict = {
+        "pv_w": None,
+        "battery_soc_pct": None,
+        "battery_w": None,
+        "grid_w": None,
+        "load_w": None,
+        "updated_at": None,
+    }
+
+    async def _refresh_flow_cache() -> None:
+        while True:
+            try:
+                results = await asyncio.gather(
+                    ha_client.get_pv_power_w(),
+                    ha_client.get_battery_soc_pct(),
+                    ha_client.get_battery_power_w(),
+                    ha_client.get_grid_power_w(),
+                    ha_client.get_load_power_w(),
+                    return_exceptions=True,
+                )
+                pv, soc, bat, grid, load = [
+                    r if not isinstance(r, Exception) else None for r in results
+                ]
+                flow_cache.update({
+                    "pv_w": pv,
+                    "battery_soc_pct": soc,
+                    "battery_w": bat,
+                    "grid_w": grid,
+                    "load_w": load,
+                    "updated_at": datetime.now().strftime("%H:%M:%S"),
+                })
+            except Exception as exc:
+                logger.debug("Flow cache refresh error: %s", exc)
+            await asyncio.sleep(2)
+
+    @app.on_event("startup")
+    async def start_flow_cache_refresh():
+        asyncio.create_task(_refresh_flow_cache())
 
     # ── Middleware: extract X-Ingress-Path for correct URL prefix ────────
     @app.middleware("http")
@@ -286,6 +328,17 @@ def create_app(db: DatabaseManager, calibration: CalibrationEngine) -> FastAPI:
             "days_of_data": cal_state.get("days_of_data", 0),
             "global_correction": cal_state.get("global_correction", 1.0),
         }
+
+    @app.get("/flow", response_class=HTMLResponse)
+    async def flow_page(request: Request):
+        return templates.TemplateResponse(
+            "flow.html", {"request": request, "base": request.state.base, "active": "flow"}
+        )
+
+    @app.get("/api/flow")
+    async def api_flow():
+        """Real-time energy flow data (cached, refreshed every 2 s)."""
+        return flow_cache
 
     return app
 

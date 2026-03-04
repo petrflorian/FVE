@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+{% block title %}Toky – FVE Solar Forecast{% endblock %}
+
+{% block content %}
+<style>
+  .flow-wrapper { max-width: 960px; margin: 0 auto; padding: 1rem 1rem 2rem; }
+  .flow-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+  .flow-header h2 { margin: 0; font-size: 1.2rem; }
+  .flow-updated { font-size: 0.82rem; color: #888; }
+
+  #flow-svg {
+    width: 100%;
+    height: auto;
+    background: #111827;
+    border-radius: 14px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+  }
+
+  /* Node boxes */
+  .node-solar    { fill: #1c1200; stroke: #f39c12; stroke-width: 2.5; }
+  .node-inverter { fill: #0d1b2a; stroke: #5b9bd5; stroke-width: 2.5; }
+  .node-home     { fill: #0d1b2a; stroke: #3498db; stroke-width: 2.5; }
+  .node-grid     { fill: #1a0a0a; stroke: #888;    stroke-width: 2.5; }
+  .node-battery  { fill: #071a10; stroke: #2ecc71; stroke-width: 2.5; }
+  .node-na       { fill: #1a1a1a; stroke: #444;    stroke-width: 1.5; }
+
+  /* Node text */
+  .node-icon  { font-size: 24px; text-anchor: middle; dominant-baseline: middle; }
+  .node-label { font-size: 12px; fill: #9ca3af; text-anchor: middle; letter-spacing: 0.5px; }
+  .node-val   { font-size: 17px; font-weight: 700; text-anchor: middle; }
+  .node-val-na { font-size: 14px; fill: #555; text-anchor: middle; }
+  .val-solar   { fill: #f39c12; }
+  .val-home    { fill: #3498db; }
+  .val-grid-import { fill: #e74c3c; }
+  .val-grid-export { fill: #2ecc71; }
+  .val-grid-idle   { fill: #888; }
+  .val-bat-charge  { fill: #2ecc71; }
+  .val-bat-dis     { fill: #f39c12; }
+  .val-bat-idle    { fill: #888; }
+  .val-inv         { fill: #e2e8f0; }
+
+  /* SOC bar */
+  .soc-label { font-size: 11px; fill: #9ca3af; text-anchor: middle; }
+  .soc-bg    { fill: #2d2d2d; }
+  .soc-good  { fill: #2ecc71; }
+  .soc-mid   { fill: #f39c12; }
+  .soc-low   { fill: #e74c3c; }
+
+  /* Flow lines */
+  .fline {
+    fill: none;
+    stroke-width: 5;
+    stroke-linecap: round;
+    stroke-dasharray: 12 9;
+  }
+  .fline-inactive { fill: none; stroke: #2d2d2d; stroke-width: 3; stroke-dasharray: none; }
+
+  @keyframes flow-fwd { from { stroke-dashoffset: 21; } to { stroke-dashoffset: 0; } }
+  @keyframes flow-rev { from { stroke-dashoffset: -21; } to { stroke-dashoffset: 0; } }
+  .fwd { animation: flow-fwd 0.55s linear infinite; }
+  .rev { animation: flow-rev 0.55s linear infinite; }
+
+  .stroke-solar   { stroke: #f39c12; }
+  .stroke-home    { stroke: #3498db; }
+  .stroke-import  { stroke: #e74c3c; }
+  .stroke-export  { stroke: #2ecc71; }
+  .stroke-charge  { stroke: #2ecc71; }
+  .stroke-dis     { stroke: #f39c12; }
+
+  /* Line value labels */
+  .lval {
+    font-size: 12px;
+    fill: #d1d5db;
+    text-anchor: middle;
+    pointer-events: none;
+  }
+  .lval-bg { fill: #111827; rx: 4; }
+
+  /* Legend */
+  .flow-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 1.2rem;
+    margin-top: 1rem;
+    font-size: 0.78rem;
+    color: #9ca3af;
+  }
+  .leg { display: flex; align-items: center; gap: 0.35rem; }
+  .leg-dot { width: 12px; height: 4px; border-radius: 2px; display: inline-block; }
+</style>
+
+<div class="flow-wrapper">
+  <div class="flow-header">
+    <h2>⚡ Energetické toky</h2>
+    <span class="flow-updated" id="flow-ts">načítám…</span>
+  </div>
+
+  <svg id="flow-svg" viewBox="0 0 900 470" xmlns="http://www.w3.org/2000/svg">
+
+    <!-- ═══════════════ FLOW LINES (drawn first, under nodes) ═══════════════ -->
+
+    <!-- Solar → Inverter -->
+    <path id="l-solar" class="fline-inactive"
+          d="M 228,105 C 315,105 378,175 378,228"/>
+
+    <!-- Inverter → Home -->
+    <path id="l-home" class="fline-inactive"
+          d="M 522,218 C 610,218 672,138 672,105"/>
+
+    <!-- Grid ↔ Inverter  (path: grid → inverter, fwd=import, rev=export) -->
+    <path id="l-grid" class="fline-inactive"
+          d="M 228,362 C 315,362 378,290 378,252"/>
+
+    <!-- Inverter ↔ Battery  (path: inverter → battery, fwd=charge, rev=discharge) -->
+    <path id="l-bat" class="fline-inactive"
+          d="M 522,252 C 610,252 672,308 672,362"/>
+
+    <!-- ═══════════════ LINE VALUE LABELS ═══════════════ -->
+    <rect id="lbg-solar"  class="lval-bg" x="272" y="138" width="60" height="18" rx="4"/>
+    <text id="lv-solar"   class="lval" x="302" y="151"></text>
+
+    <rect id="lbg-home"   class="lval-bg" x="598" y="138" width="60" height="18" rx="4"/>
+    <text id="lv-home"    class="lval" x="628" y="151"></text>
+
+    <rect id="lbg-grid"   class="lval-bg" x="272" y="318" width="60" height="18" rx="4"/>
+    <text id="lv-grid"    class="lval" x="302" y="331"></text>
+
+    <rect id="lbg-bat"    class="lval-bg" x="598" y="318" width="60" height="18" rx="4"/>
+    <text id="lv-bat"     class="lval" x="628" y="331"></text>
+
+    <!-- ═══════════════ NODES ═══════════════ -->
+
+    <!-- ── SOLAR ── top-left -->
+    <rect id="box-solar" class="node-solar" x="83" y="58" width="145" height="95" rx="13"/>
+    <text class="node-icon" x="155" y="88">☀️</text>
+    <text class="node-label" x="155" y="110">SOLÁR (FV)</text>
+    <text id="v-solar" class="node-val val-solar" x="155" y="137">–</text>
+
+    <!-- ── INVERTER ── center -->
+    <rect class="node-inverter" x="378" y="178" width="144" height="110" rx="13"/>
+    <text class="node-icon" x="450" y="208">⚡</text>
+    <text class="node-label" x="450" y="228">STŘÍDAČ</text>
+    <text id="v-inv" class="node-val val-inv" x="450" y="256" style="font-size:13px;font-weight:400;"></text>
+
+    <!-- ── HOME ── top-right -->
+    <rect id="box-home" class="node-home" x="672" y="58" width="145" height="95" rx="13"/>
+    <text class="node-icon" x="744" y="88">🏠</text>
+    <text class="node-label" x="744" y="110">SPOTŘEBA</text>
+    <text id="v-home" class="node-val val-home" x="744" y="137">–</text>
+
+    <!-- ── GRID ── bottom-left -->
+    <rect id="box-grid" class="node-grid" x="83" y="318" width="145" height="95" rx="13"/>
+    <text class="node-icon" x="155" y="348">🔌</text>
+    <text class="node-label" x="155" y="370">SÍŤ</text>
+    <text id="v-grid" class="node-val val-grid-idle" x="155" y="397">–</text>
+
+    <!-- ── BATTERY ── bottom-right -->
+    <rect id="box-bat" class="node-battery" x="672" y="308" width="145" height="122" rx="13"/>
+    <text class="node-icon" x="744" y="336">🔋</text>
+    <text class="node-label" x="744" y="358">BATERIE</text>
+    <text id="v-bat" class="node-val val-bat-idle" x="744" y="382">–</text>
+    <!-- SOC bar -->
+    <rect class="soc-bg" x="697" y="391" width="94" height="9" rx="4"/>
+    <rect id="soc-fill" x="697" y="391" width="0" height="9" rx="4" class="soc-good"/>
+    <text id="v-soc" class="soc-label" x="744" y="416">SOC: –</text>
+
+    <!-- Subtle corner dots at connection midpoints -->
+    <circle id="dot-solar" cx="302" cy="147" r="0" fill="#f39c12" opacity="0.6"/>
+    <circle id="dot-home"  cx="628" cy="147" r="0" fill="#3498db" opacity="0.6"/>
+    <circle id="dot-grid"  cx="302" cy="327" r="0" fill="#888"    opacity="0.6"/>
+    <circle id="dot-bat"   cx="628" cy="327" r="0" fill="#2ecc71" opacity="0.6"/>
+
+  </svg>
+
+  <!-- Legend -->
+  <div class="flow-legend">
+    <span class="leg"><span class="leg-dot" style="background:#f39c12"></span>Výroba FV</span>
+    <span class="leg"><span class="leg-dot" style="background:#3498db"></span>Spotřeba domu</span>
+    <span class="leg"><span class="leg-dot" style="background:#2ecc71"></span>Nabíjení / Export do sítě</span>
+    <span class="leg"><span class="leg-dot" style="background:#f39c12"></span>Vybíjení</span>
+    <span class="leg"><span class="leg-dot" style="background:#e74c3c"></span>Import ze sítě</span>
+    <span class="leg" style="margin-left:auto;color:#555">↻ 2 s</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  const BASE = "{{ base }}";
+
+  function fmtW(val) {
+    if (val === null || val === undefined) return "N/A";
+    const abs = Math.abs(val);
+    if (abs >= 1000) return (val / 1000).toFixed(2) + " kW";
+    return Math.round(val) + " W";
+  }
+
+  function fmtAbs(val) {
+    if (val === null || val === undefined) return "";
+    const abs = Math.abs(val);
+    if (abs >= 1000) return (abs / 1000).toFixed(2) + " kW";
+    return Math.round(abs) + " W";
+  }
+
+  /**
+   * Update a flow line.
+   * @param {string} lineId  - SVG path id
+   * @param {string} lblId   - label text id
+   * @param {string} bgId    - label background rect id
+   * @param {number|null} w  - power in watts (null = sensor not configured)
+   * @param {string} stroke  - CSS stroke class when active
+   * @param {boolean} fwd    - true = flow-fwd animation, false = flow-rev
+   */
+  function setLine(lineId, lblId, bgId, w, stroke, fwd) {
+    const path = document.getElementById(lineId);
+    const lbl  = document.getElementById(lblId);
+    const bg   = document.getElementById(bgId);
+
+    const txt = fmtAbs(w);
+    lbl.textContent = txt;
+
+    // Show/hide label background based on content
+    bg.setAttribute("display", txt ? "block" : "none");
+
+    if (w === null || w === undefined || Math.abs(w) < 5) {
+      path.setAttribute("class", "fline-inactive");
+      lbl.textContent = "";
+      bg.setAttribute("display", "none");
+      return;
+    }
+
+    path.setAttribute("class", `fline ${stroke} ${fwd ? "fwd" : "rev"}`);
+  }
+
+  async function refresh() {
+    let d;
+    try {
+      const resp = await fetch(BASE + "/api/flow");
+      if (!resp.ok) return;
+      d = await resp.json();
+    } catch (e) {
+      return;
+    }
+
+    // ── Solar ──────────────────────────────────────────────────────────
+    const vSolar = document.getElementById("v-solar");
+    vSolar.textContent = fmtW(d.pv_w);
+    setLine("l-solar", "lv-solar", "lbg-solar", d.pv_w, "stroke-solar", true);
+
+    // ── Home / Load ────────────────────────────────────────────────────
+    const vHome = document.getElementById("v-home");
+    vHome.textContent = fmtW(d.load_w);
+    setLine("l-home", "lv-home", "lbg-home", d.load_w, "stroke-home", true);
+
+    // ── Grid (positive = import, negative = export) ────────────────────
+    const vGrid = document.getElementById("v-grid");
+    vGrid.textContent = d.grid_w !== null ? fmtAbs(d.grid_w) || "0 W" : "N/A";
+    if (d.grid_w !== null && Math.abs(d.grid_w) >= 5) {
+      const imp = d.grid_w > 0;
+      vGrid.setAttribute("class", `node-val ${imp ? "val-grid-import" : "val-grid-export"}`);
+      // path goes grid→inverter: fwd = import, rev = export
+      setLine("l-grid", "lv-grid", "lbg-grid", d.grid_w,
+              imp ? "stroke-import" : "stroke-export", imp);
+    } else {
+      vGrid.setAttribute("class", "node-val val-grid-idle");
+      setLine("l-grid", "lv-grid", "lbg-grid",
+              d.grid_w !== null ? 0 : null, "stroke-import", true);
+    }
+
+    // ── Battery (positive = charging, negative = discharging) ──────────
+    const vBat = document.getElementById("v-bat");
+    vBat.textContent = d.battery_w !== null ? fmtAbs(d.battery_w) || "0 W" : "N/A";
+    if (d.battery_w !== null && Math.abs(d.battery_w) >= 5) {
+      const chg = d.battery_w > 0;
+      vBat.setAttribute("class", `node-val ${chg ? "val-bat-charge" : "val-bat-dis"}`);
+      // path goes inverter→battery: fwd = charge, rev = discharge
+      setLine("l-bat", "lv-bat", "lbg-bat", d.battery_w,
+              chg ? "stroke-charge" : "stroke-dis", chg);
+    } else {
+      vBat.setAttribute("class", "node-val val-bat-idle");
+      setLine("l-bat", "lv-bat", "lbg-bat",
+              d.battery_w !== null ? 0 : null, "stroke-charge", true);
+    }
+
+    // ── SOC ────────────────────────────────────────────────────────────
+    const soc = d.battery_soc_pct;
+    if (soc !== null && soc !== undefined) {
+      document.getElementById("v-soc").textContent = "SOC: " + Math.round(soc) + "%";
+      const barW = Math.round(soc * 0.94);
+      const fill = document.getElementById("soc-fill");
+      fill.setAttribute("width", barW);
+      fill.setAttribute("class", soc < 20 ? "soc-low" : soc < 50 ? "soc-mid" : "soc-good");
+    } else {
+      document.getElementById("v-soc").textContent = "SOC: N/A";
+      document.getElementById("soc-fill").setAttribute("width", 0);
+    }
+
+    // ── Inverter status label (shows PV power or idle) ─────────────────
+    const vInv = document.getElementById("v-inv");
+    if (d.pv_w !== null && d.pv_w >= 5) {
+      vInv.textContent = "▶ aktivní";
+      vInv.style.fill = "#86efac";
+    } else {
+      vInv.textContent = "— standby";
+      vInv.style.fill = "#6b7280";
+    }
+
+    // ── Timestamp ──────────────────────────────────────────────────────
+    document.getElementById("flow-ts").textContent =
+      d.updated_at ? "Aktualizováno: " + d.updated_at : "";
+  }
+
+  // Initial load + 2-second polling
+  refresh();
+  setInterval(refresh, 2000);
+})();
+</script>
+{% endblock %}
