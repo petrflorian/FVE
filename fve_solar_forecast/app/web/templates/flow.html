@@ -37,7 +37,6 @@
   .c-solar  { fill: #d97706; }
   .c-home   { fill: #2563eb; }
   .c-import { fill: #dc2626; }
-  .c-export { fill: #16a34a; }
   .c-charge { fill: #16a34a; }
   .c-dis    { fill: #ea580c; }
   .c-idle   { fill: #cbd5e1; }
@@ -83,7 +82,6 @@
   .sp-suff  .sp-val { color: #16a34a; }
   .sp-solar .sp-val { color: #d97706; }
   .sp-grid-imp .sp-val { color: #dc2626; }
-  .sp-grid-exp .sp-val { color: #16a34a; }
 
   /* ── Legend ── */
   .flow-legend {
@@ -110,10 +108,46 @@
 
     <!-- ── DEFS ── -->
     <defs>
-      <!-- Grid-dot background pattern -->
+      <!-- Background dot pattern -->
       <pattern id="dots" x="0" y="0" width="30" height="30" patternUnits="userSpaceOnUse">
         <circle cx="1" cy="1" r="0.8" fill="#cbd5e1" opacity="0.6"/>
       </pattern>
+
+      <!-- ── Icon symbols (stroke-based, 24×24) ── -->
+      <symbol id="ico-solar" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-linecap="round" stroke-linejoin="round">
+        <!-- Panel frame -->
+        <rect x="2" y="3" width="20" height="12" rx="2" stroke-width="1.7"/>
+        <!-- Cell dividers -->
+        <line x1="9"  y1="3" x2="9"  y2="15" stroke-width="1.1"/>
+        <line x1="15" y1="3" x2="15" y2="15" stroke-width="1.1"/>
+        <line x1="2"  y1="9" x2="22" y2="9"  stroke-width="1.1"/>
+        <!-- Mounting legs -->
+        <line x1="8"  y1="15" x2="6"  y2="21" stroke-width="1.7"/>
+        <line x1="16" y1="15" x2="18" y2="21" stroke-width="1.7"/>
+        <line x1="6"  y1="21" x2="18" y2="21" stroke-width="1.7"/>
+      </symbol>
+
+      <symbol id="ico-bolt" viewBox="0 0 24 24">
+        <!-- Solid lightning bolt (filled) -->
+        <path d="M13 2L4 14h8L10 22L21 10h-8z" fill="currentColor"/>
+      </symbol>
+
+      <symbol id="ico-home" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 12L12 3l9 9" stroke-width="1.7"/>
+        <path d="M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9" stroke-width="1.7"/>
+      </symbol>
+
+      <symbol id="ico-plug" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-linecap="round" stroke-linejoin="round">
+        <!-- Prongs -->
+        <path d="M9 3v5M15 3v5" stroke-width="1.8"/>
+        <!-- Body -->
+        <path d="M6 8h12v3a5 5 0 01-5 5h-2a5 5 0 01-5-5V8z" stroke-width="1.7"/>
+        <!-- Cable -->
+        <line x1="12" y1="16" x2="12" y2="21" stroke-width="1.8"/>
+      </symbol>
     </defs>
 
     <!-- Subtle background grid -->
@@ -150,17 +184,9 @@
 
     <!-- ═══════════════ NODE: SOLAR (top) ═══════════════ -->
     <rect id="box-solar" class="nb nb-solar" x="370" y="15" width="160" height="107" rx="14"/>
-    <!-- Sun icon: circle + rays -->
-    <circle cx="450" cy="46" r="12" fill="#f59e0b" opacity="0.9"/>
-    <g id="sun-rays" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" opacity="0.85">
-      <line x1="450" y1="28" x2="450" y2="23"/>
-      <line x1="450" y1="64" x2="450" y2="69"/>
-      <line x1="432" y1="46" x2="427" y2="46"/>
-      <line x1="468" y1="46" x2="473" y2="46"/>
-      <line x1="437" y1="33" x2="433" y2="29"/>
-      <line x1="463" y1="59" x2="467" y2="63"/>
-      <line x1="463" y1="33" x2="467" y2="29"/>
-      <line x1="437" y1="59" x2="433" y2="63"/>
+    <!-- Solar panel icon -->
+    <g id="solar-icon-g" style="color:#d97706">
+      <use href="#ico-solar" x="432" y="24" width="36" height="36"/>
     </g>
     <text class="nt-label" x="450" y="72">SOLÁR (FV)</text>
     <text id="v-solar" class="nt-val c-solar" x="450" y="95">–</text>
@@ -168,27 +194,28 @@
 
     <!-- ═══════════════ NODE: INVERTER (center) ═══════════════ -->
     <rect class="nb nb-inv" x="368" y="198" width="164" height="104" rx="14"/>
-    <!-- Lightning bolt icon -->
-    <polygon points="456,213 443,238 451,238 444,263 457,238 449,238" fill="#3b82f6" opacity="0.85"/>
+    <!-- Inverter bolt icon -->
+    <g style="color:#3b82f6">
+      <use href="#ico-bolt" x="436" y="210" width="28" height="28"/>
+    </g>
     <text class="nt-label" x="450" y="272">STŘÍDAČ</text>
     <text id="v-inv" class="nt-inv-st c-idle" x="450" y="291">–</text>
 
     <!-- ═══════════════ NODE: HOME (right) ═══════════════ -->
     <rect id="box-home" class="nb nb-home" x="700" y="198" width="160" height="104" rx="14"/>
-    <!-- House icon -->
-    <polygon points="780,212 762,232 768,232 768,258 792,258 792,232 798,232" fill="#2563eb" opacity="0.8"/>
-    <line x1="774" y1="258" x2="774" y2="244" stroke="#2563eb" stroke-width="2" opacity="0.7"/>
-    <line x1="786" y1="258" x2="786" y2="244" stroke="#2563eb" stroke-width="2" opacity="0.7"/>
+    <!-- Home icon -->
+    <g style="color:#2563eb">
+      <use href="#ico-home" x="762" y="208" width="36" height="36"/>
+    </g>
     <text class="nt-label" x="780" y="272">SPOTŘEBA</text>
     <text id="v-home" class="nt-val c-home" x="780" y="291">–</text>
 
     <!-- ═══════════════ NODE: GRID (left) ═══════════════ -->
     <rect id="box-grid" class="nb nb-grid" x="40" y="198" width="160" height="104" rx="14"/>
-    <!-- Power plug icon -->
-    <rect x="111" y="212" width="18" height="28" rx="3" fill="#64748b" opacity="0.5"/>
-    <line x1="116" y1="240" x2="116" y2="255" stroke="#64748b" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
-    <line x1="124" y1="240" x2="124" y2="255" stroke="#64748b" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
-    <rect x="107" y="255" width="26" height="8" rx="4" fill="#64748b" opacity="0.4"/>
+    <!-- Grid plug icon -->
+    <g style="color:#ef4444">
+      <use href="#ico-plug" x="106" y="208" width="28" height="28"/>
+    </g>
     <text class="nt-label" x="120" y="272">SÍŤ</text>
     <text id="v-grid"   class="nt-val c-idle" x="120" y="291">–</text>
     <text id="dir-grid" class="nt-dir c-idle" x="120" y="305"></text>
@@ -236,11 +263,6 @@
       <span>Import ze sítě</span>
       <span class="sp-val" id="sp-grid-imp-val">–</span>
     </div>
-    <div class="stat-pill sp-grid-exp" id="pill-grid-exp" style="display:none">
-      <span class="sp-icon">🟢</span>
-      <span>Export do sítě</span>
-      <span class="sp-val" id="sp-grid-exp-val">–</span>
-    </div>
     <div class="stat-pill" style="margin-left:auto;color:#94a3b8;font-size:0.72rem">
       ↻ 2 s
     </div>
@@ -250,7 +272,7 @@
   <div class="flow-legend">
     <span class="leg"><span class="leg-dot" style="background:#d97706"></span> Výroba FV</span>
     <span class="leg"><span class="leg-dot" style="background:#2563eb"></span> Spotřeba domu</span>
-    <span class="leg"><span class="leg-dot" style="background:#16a34a"></span> Nabíjení / Export</span>
+    <span class="leg"><span class="leg-dot" style="background:#16a34a"></span> Nabíjení baterie</span>
     <span class="leg"><span class="leg-dot" style="background:#ea580c"></span> Vybíjení</span>
     <span class="leg"><span class="leg-dot" style="background:#dc2626"></span> Import ze sítě</span>
     <span class="leg" style="color:#1f2937">— tloušťka = výkon</span>
@@ -357,12 +379,12 @@
     const pvNorm = d.pv_w ? Math.min(d.pv_w / MAX_W, 1) : 0;
     setGlow("box-solar", "rgba(217,119,6,0.35)", pvNorm);
 
-    /* Animate sun rays */
-    const rays = document.getElementById("sun-rays");
+    /* Dim solar icon when inactive */
+    const solarIcon = document.getElementById("solar-icon-g");
     if (d.pv_w && d.pv_w > 10) {
-      rays.style.opacity = "0.9";
+      solarIcon.style.opacity = "1";
     } else {
-      rays.style.opacity = "0.25";
+      solarIcon.style.opacity = "0.35";
     }
 
     /* ── Home / Load ── */
@@ -378,38 +400,20 @@
     const dirGrid = document.getElementById("dir-grid");
     const arrGrid = document.getElementById("arr-grid");
 
-    if (gw !== null && Math.abs(gw) >= 5) {
-      const imp = gw > 0;
-      const col = imp ? "#dc2626" : "#16a34a";
+    if (gw !== null && gw >= 5) {
       vGrid.textContent = fmtW(gw);
-      vGrid.setAttribute("class", `nt-val ${imp ? "c-import" : "c-export"}`);
-      dirGrid.textContent = imp ? "▲ IMPORT" : "▼ EXPORT";
-      dirGrid.setAttribute("class", `nt-dir ${imp ? "c-import" : "c-export"}`);
-      /* path Grid→Inv: fwd = import (grid→inv), rev = export (inv→grid) */
-      setLine("fl-grid", "lvbg-grid", "lv-grid", null, gw, col, imp);
-      /* Arrow triangle points toward inverter (import) or toward grid (export) */
+      vGrid.setAttribute("class", "nt-val c-import");
+      dirGrid.textContent = "▲ IMPORT";
+      dirGrid.setAttribute("class", "nt-dir c-import");
+      setLine("fl-grid", "lvbg-grid", "lv-grid", null, gw, "#dc2626", true);
       if (arrGrid) {
-        arrGrid.setAttribute("fill", col);
+        arrGrid.setAttribute("fill", "#dc2626");
         arrGrid.setAttribute("opacity", "0.9");
-        if (imp) {
-          arrGrid.setAttribute("points", "358,250 366,244 366,256"); /* pointing right = toward inv */
-        } else {
-          arrGrid.setAttribute("points", "202,250 210,244 210,256"); /* pointing left = toward grid */
-        }
+        arrGrid.setAttribute("points", "358,250 366,244 366,256");
       }
-      setGlow("box-grid", imp ? "rgba(220,38,38,0.2)" : "rgba(22,163,74,0.18)",
-              Math.min(Math.abs(gw) / MAX_W, 1));
-
-      /* Grid status pills */
-      if (imp) {
-        document.getElementById("pill-grid-imp").style.display = "flex";
-        document.getElementById("sp-grid-imp-val").textContent = fmtW(gw);
-        document.getElementById("pill-grid-exp").style.display = "none";
-      } else {
-        document.getElementById("pill-grid-exp").style.display = "flex";
-        document.getElementById("sp-grid-exp-val").textContent = fmtW(gw);
-        document.getElementById("pill-grid-imp").style.display = "none";
-      }
+      setGlow("box-grid", "rgba(220,38,38,0.2)", Math.min(gw / MAX_W, 1));
+      document.getElementById("pill-grid-imp").style.display = "flex";
+      document.getElementById("sp-grid-imp-val").textContent = fmtW(gw);
     } else {
       vGrid.textContent = gw !== null ? "0 W" : "N/A";
       vGrid.setAttribute("class", "nt-val c-idle");
@@ -417,7 +421,6 @@
       setLine("fl-grid", "lvbg-grid", "lv-grid", arrGrid, 0, "#374151", true);
       setGlow("box-grid", "", 0);
       document.getElementById("pill-grid-imp").style.display = "none";
-      document.getElementById("pill-grid-exp").style.display = "none";
     }
 
     /* ── Battery ── */
