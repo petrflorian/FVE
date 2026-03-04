@@ -18,7 +18,7 @@ panel_icon: "mdi:solar-power"
 panel_title: "Solar Forecast"
 
 map:
-  - data:rw
+  - data
 
 options:
   latitude: 50.0
