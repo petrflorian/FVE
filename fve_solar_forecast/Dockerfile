@@ -8,12 +8,12 @@ RUN apk add --no-cache \
     bash
 
 # Install Python dependencies
-WORKDIR /app
-COPY requirements.txt /app/requirements.txt
+WORKDIR /src
+COPY requirements.txt /src/requirements.txt
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Copy application
-COPY app/ /app/
+# Copy application as 'app' package under /src
+COPY app/ /src/app/
 
 # Make run.sh executable
 COPY run.sh /run.sh
