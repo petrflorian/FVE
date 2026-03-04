@@ -90,8 +90,8 @@ fetch(`${BASE}/api/forecast/today`)
     });
 
     // Summary bar
-    const forecastTotal = slots.reduce((s, x) => s + (x.forecast_calibrated_w || 0), 0) / 4 / 1000;
-    const actualTotal = slots.reduce((s, x) => s + (x.actual_w || 0), 0) / 4 / 1000;
+    const forecastTotal = slots.reduce((s, x) => s + (x.forecast_calibrated_w || 0), 0) / 1000;
+    const actualTotal = slots.reduce((s, x) => s + (x.actual_w || 0), 0) / 1000;
     const actualSlots = slots.filter(s => s.actual_w != null).length;
 
     document.getElementById('sum-forecast').textContent = forecastTotal.toFixed(2) + ' kWh';
