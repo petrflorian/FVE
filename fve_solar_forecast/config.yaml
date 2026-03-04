@@ -40,10 +40,10 @@ schema:
   longitude: "float(-180,180)"
   tilt: "int(0,90)"
   azimuth: "int(0,360)"
-  kwp: float
+  kwp: "float"
   ha_token: "str?"
-  ha_url: str
-  ha_sensor_power: str
-  ha_sensor_energy: str
+  ha_url: "str"
+  ha_sensor_power: "str"
+  ha_sensor_energy: "str"
   calibration_window_days: "int(7,90)"
   log_level: "list(debug|info|warning|error)"
