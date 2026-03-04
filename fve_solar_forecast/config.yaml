@@ -33,10 +33,10 @@ options:
   log_level: "info"
 
 schema:
-  latitude: "float(-90,90)"
-  longitude: "float(-180,180)"
-  tilt: "int(0,90)"
-  azimuth: "int(0,360)"
+  latitude: "float"
+  longitude: "float"
+  tilt: "int"
+  azimuth: "int"
   kwp: "float"
   ha_token: "str?"
   ha_url: "str"
