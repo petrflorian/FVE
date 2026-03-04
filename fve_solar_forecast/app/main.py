@@ -81,7 +81,7 @@ async def main() -> None:
         )
 
     # 5. FastAPI + uvicorn
-    app = create_app(db, calibration)
+    app = create_app(db, calibration, ha_client)
 
     uv_config = uvicorn.Config(
         app=app,
