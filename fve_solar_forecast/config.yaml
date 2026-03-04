@@ -1,5 +1,5 @@
 name: "FVE Solar Forecast"
-version: "1.0.6"
+version: "1.0.7"
 slug: "fve_solar_forecast"
 description: "Predikce výroby solární elektrárny s automatickým učením"
 url: "https://github.com/petrflorian/FVE"

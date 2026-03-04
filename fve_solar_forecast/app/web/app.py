@@ -40,6 +40,8 @@ def create_app(db: DatabaseManager, calibration: CalibrationEngine, ha_client: H
         "battery_w": None,
         "grid_w": None,
         "load_w": None,
+        "pv_kwh_today": None,
+        "self_sufficiency_pct": None,
         "updated_at": None,
     }
 
@@ -52,17 +54,25 @@ def create_app(db: DatabaseManager, calibration: CalibrationEngine, ha_client: H
                     ha_client.get_battery_power_w(),
                     ha_client.get_grid_power_w(),
                     ha_client.get_load_power_w(),
+                    ha_client.get_energy_kwh(),
                     return_exceptions=True,
                 )
-                pv, soc, bat, grid, load = [
+                pv, soc, bat, grid, load, pv_kwh = [
                     r if not isinstance(r, Exception) else None for r in results
                 ]
+                # Self-sufficiency: % of load covered by non-grid sources
+                self_suff = None
+                if load is not None and load > 10:
+                    grid_import = max(0.0, grid) if grid is not None else 0.0
+                    self_suff = round(max(0.0, min(100.0, (load - grid_import) / load * 100)), 1)
                 flow_cache.update({
                     "pv_w": pv,
                     "battery_soc_pct": soc,
                     "battery_w": bat,
                     "grid_w": grid,
                     "load_w": load,
+                    "pv_kwh_today": pv_kwh,
+                    "self_sufficiency_pct": self_suff,
                     "updated_at": datetime.now().strftime("%H:%M:%S"),
                 })
             except Exception as exc:
