@@ -21,7 +21,7 @@ panel_title: "Solar Forecast"
 
 # Perzistentní úložiště pro SQLite DB
 map:
-  - type: data
+  - data
 
 options:
   latitude: 50.0
@@ -29,7 +29,7 @@ options:
   tilt: 30
   azimuth: 180
   kwp: 5.0
-  ha_token: ""
+  ha_token: null
   ha_url: "http://supervisor/core"
   ha_sensor_power: "sensor.solar_assistant_pv_power"
   ha_sensor_energy: "sensor.solar_assistant_pv_energy_today"
