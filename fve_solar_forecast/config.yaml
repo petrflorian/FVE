@@ -10,18 +10,15 @@ arch:
   - armhf
   - armv7
 
-# HA Supervisor integration – injektuje SUPERVISOR_TOKEN a zpřístupní HA Core API
 homeassistant_api: true
 
-# Ingress – přístup přes HA sidebar bez nutnosti otevírat porty
 ingress: true
 ingress_port: 8099
 panel_icon: "mdi:solar-power"
 panel_title: "Solar Forecast"
 
-# Perzistentní úložiště pro SQLite DB
 map:
-  - data
+  - data:rw
 
 options:
   latitude: 50.0
