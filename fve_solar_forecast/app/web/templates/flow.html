@@ -3,313 +3,507 @@
 
 {% block content %}
 <style>
-  .flow-wrapper { max-width: 960px; margin: 0 auto; padding: 1rem 1rem 2rem; }
-  .flow-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
-  .flow-header h2 { margin: 0; font-size: 1.2rem; }
-  .flow-updated { font-size: 0.82rem; color: #888; }
+  /* ── Layout ── */
+  .fw { max-width: 960px; margin: 0 auto; padding: 1rem 1rem 2.5rem; }
+  .fw-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+  .fw-header h2 { margin: 0; font-size: 1.15rem; letter-spacing: 0.01em; }
+  .fw-ts { font-size: 0.78rem; color: #6b7280; }
 
-  #flow-svg {
+  /* ── SVG canvas ── */
+  #fsvg {
     width: 100%;
     height: auto;
-    background: #111827;
-    border-radius: 14px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    background: #0d1117;
+    border-radius: 16px;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.6);
   }
 
-  /* Node boxes */
-  .node-solar    { fill: #1c1200; stroke: #f39c12; stroke-width: 2.5; }
-  .node-inverter { fill: #0d1b2a; stroke: #5b9bd5; stroke-width: 2.5; }
-  .node-home     { fill: #0d1b2a; stroke: #3498db; stroke-width: 2.5; }
-  .node-grid     { fill: #1a0a0a; stroke: #888;    stroke-width: 2.5; }
-  .node-battery  { fill: #071a10; stroke: #2ecc71; stroke-width: 2.5; }
-  .node-na       { fill: #1a1a1a; stroke: #444;    stroke-width: 1.5; }
+  /* ── Node boxes ── */
+  .nb { stroke-width: 1.5; }
+  .nb-solar   { fill: #130e00; stroke: #78450a; }
+  .nb-inv     { fill: #0a101a; stroke: #1e3a5f; }
+  .nb-home    { fill: #080f1a; stroke: #1a3a5c; }
+  .nb-grid    { fill: #100808; stroke: #3a1010; }
+  .nb-bat     { fill: #060f09; stroke: #0e3a1c; }
 
-  /* Node text */
-  .node-icon  { font-size: 24px; text-anchor: middle; dominant-baseline: middle; }
-  .node-label { font-size: 12px; fill: #9ca3af; text-anchor: middle; letter-spacing: 0.5px; }
-  .node-val   { font-size: 17px; font-weight: 700; text-anchor: middle; }
-  .node-val-na { font-size: 14px; fill: #555; text-anchor: middle; }
-  .val-solar   { fill: #f39c12; }
-  .val-home    { fill: #3498db; }
-  .val-grid-import { fill: #e74c3c; }
-  .val-grid-export { fill: #2ecc71; }
-  .val-grid-idle   { fill: #888; }
-  .val-bat-charge  { fill: #2ecc71; }
-  .val-bat-dis     { fill: #f39c12; }
-  .val-bat-idle    { fill: #888; }
-  .val-inv         { fill: #e2e8f0; }
+  /* ── Node text ── */
+  .nt-icon  { font-size: 26px; text-anchor: middle; dominant-baseline: middle; }
+  .nt-label { font-size: 10px; fill: #4b5563; text-anchor: middle; letter-spacing: 1.2px; font-weight: 600; }
+  .nt-val   { font-size: 18px; font-weight: 700; text-anchor: middle; }
+  .nt-kwh   { font-size: 11px; fill: #4b5563; text-anchor: middle; }
+  .nt-dir   { font-size: 10px; text-anchor: middle; font-weight: 600; letter-spacing: 0.5px; }
+  .nt-inv-st { font-size: 11px; text-anchor: middle; }
 
-  /* SOC bar */
-  .soc-label { font-size: 11px; fill: #9ca3af; text-anchor: middle; }
-  .soc-bg    { fill: #2d2d2d; }
-  .soc-good  { fill: #2ecc71; }
-  .soc-mid   { fill: #f39c12; }
-  .soc-low   { fill: #e74c3c; }
+  .c-solar  { fill: #f59e0b; }
+  .c-home   { fill: #60a5fa; }
+  .c-import { fill: #f87171; }
+  .c-export { fill: #34d399; }
+  .c-charge { fill: #34d399; }
+  .c-dis    { fill: #fb923c; }
+  .c-idle   { fill: #374151; }
 
-  /* Flow lines */
-  .fline {
-    fill: none;
-    stroke-width: 5;
-    stroke-linecap: round;
-    stroke-dasharray: 12 9;
-  }
-  .fline-inactive { fill: none; stroke: #2d2d2d; stroke-width: 3; stroke-dasharray: none; }
+  /* ── Flow lines ── */
+  .track { fill: none; stroke: #1f2937; stroke-width: 2.5; }
+  .fline { fill: none; stroke-linecap: round; stroke-dasharray: 9 26; }
 
-  @keyframes flow-fwd { from { stroke-dashoffset: 21; } to { stroke-dashoffset: 0; } }
-  @keyframes flow-rev { from { stroke-dashoffset: -21; } to { stroke-dashoffset: 0; } }
-  .fwd { animation: flow-fwd 0.55s linear infinite; }
-  .rev { animation: flow-rev 0.55s linear infinite; }
+  @keyframes ff { from { stroke-dashoffset: 35; } to { stroke-dashoffset: 0; } }
+  @keyframes fr { from { stroke-dashoffset: 0;  } to { stroke-dashoffset: 35; } }
 
-  .stroke-solar   { stroke: #f39c12; }
-  .stroke-home    { stroke: #3498db; }
-  .stroke-import  { stroke: #e74c3c; }
-  .stroke-export  { stroke: #2ecc71; }
-  .stroke-charge  { stroke: #2ecc71; }
-  .stroke-dis     { stroke: #f39c12; }
+  /* ── SOC bar ── */
+  .soc-bg   { fill: #1f2937; }
+  .soc-good { fill: #34d399; }
+  .soc-mid  { fill: #fbbf24; }
+  .soc-low  { fill: #f87171; }
 
-  /* Line value labels */
-  .lval {
-    font-size: 12px;
-    fill: #d1d5db;
-    text-anchor: middle;
-    pointer-events: none;
-  }
-  .lval-bg { fill: #111827; rx: 4; }
+  /* ── Line value labels ── */
+  .lv-bg { fill: #0d1117; }
+  .lv    { font-size: 11px; fill: #9ca3af; text-anchor: middle; font-weight: 500; }
 
-  /* Legend */
-  .flow-legend {
+  /* ── Stats bar ── */
+  .stats-bar {
     display: flex;
+    gap: 0.75rem;
     flex-wrap: wrap;
-    gap: 0.6rem 1.2rem;
-    margin-top: 1rem;
-    font-size: 0.78rem;
+    margin-top: 0.85rem;
+  }
+  .stat-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: #161b22;
+    border: 1px solid #21262d;
+    border-radius: 9999px;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.82rem;
     color: #9ca3af;
+    transition: border-color 0.3s;
+  }
+  .stat-pill .sp-icon { font-size: 1rem; }
+  .stat-pill .sp-val  { font-weight: 700; }
+  .sp-suff  .sp-val { color: #34d399; }
+  .sp-solar .sp-val { color: #f59e0b; }
+  .sp-grid-imp .sp-val { color: #f87171; }
+  .sp-grid-exp .sp-val { color: #34d399; }
+
+  /* ── Legend ── */
+  .flow-legend {
+    display: flex; flex-wrap: wrap; gap: 0.5rem 1.2rem;
+    margin-top: 0.85rem; font-size: 0.75rem; color: #4b5563;
   }
   .leg { display: flex; align-items: center; gap: 0.35rem; }
-  .leg-dot { width: 12px; height: 4px; border-radius: 2px; display: inline-block; }
+  .leg-dot { width: 16px; height: 3px; border-radius: 2px; }
 </style>
 
-<div class="flow-wrapper">
-  <div class="flow-header">
+<div class="fw">
+  <div class="fw-header">
     <h2>⚡ Energetické toky</h2>
-    <span class="flow-updated" id="flow-ts">načítám…</span>
+    <span class="fw-ts" id="fw-ts">načítám…</span>
   </div>
 
-  <svg id="flow-svg" viewBox="0 0 900 470" xmlns="http://www.w3.org/2000/svg">
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  SVG layout (900×505):                                             -->
+  <!--    Solar (top-center)                                              -->
+  <!--    Grid (left) ── Inverter (center) ── Home (right)                -->
+  <!--    Battery (bottom-center)                                         -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <svg id="fsvg" viewBox="0 0 900 505" xmlns="http://www.w3.org/2000/svg">
 
-    <!-- ═══════════════ FLOW LINES (drawn first, under nodes) ═══════════════ -->
+    <!-- ── DEFS ── -->
+    <defs>
+      <!-- Grid-dot background pattern -->
+      <pattern id="dots" x="0" y="0" width="30" height="30" patternUnits="userSpaceOnUse">
+        <circle cx="1" cy="1" r="0.8" fill="#1f2937" opacity="0.5"/>
+      </pattern>
+    </defs>
 
-    <!-- Solar → Inverter -->
-    <path id="l-solar" class="fline-inactive"
-          d="M 228,105 C 315,105 378,175 378,228"/>
+    <!-- Subtle background grid -->
+    <rect width="900" height="505" fill="url(#dots)" rx="16"/>
 
-    <!-- Inverter → Home -->
-    <path id="l-home" class="fline-inactive"
-          d="M 522,218 C 610,218 672,138 672,105"/>
+    <!-- ═══════════════ TRACK LINES (always visible, dark) ═══════════════ -->
+    <line class="track" x1="450" y1="122" x2="450" y2="198"/>   <!-- solar↕inv   -->
+    <line class="track" x1="532" y1="250" x2="698" y2="250"/>   <!-- inv→home    -->
+    <line class="track" x1="202" y1="250" x2="368" y2="250"/>   <!-- grid→inv    -->
+    <line class="track" x1="450" y1="302" x2="450" y2="368"/>   <!-- inv↕bat     -->
 
-    <!-- Grid ↔ Inverter  (path: grid → inverter, fwd=import, rev=export) -->
-    <path id="l-grid" class="fline-inactive"
-          d="M 228,362 C 315,362 378,290 378,252"/>
-
-    <!-- Inverter ↔ Battery  (path: inverter → battery, fwd=charge, rev=discharge) -->
-    <path id="l-bat" class="fline-inactive"
-          d="M 522,252 C 610,252 672,308 672,362"/>
+    <!-- ═══════════════ ENERGY FLOW LINES (animated, colored) ═══════════ -->
+    <line id="fl-solar" class="fline" x1="450" y1="122" x2="450" y2="198"/>
+    <line id="fl-home"  class="fline" x1="532" y1="250" x2="698" y2="250"/>
+    <line id="fl-grid"  class="fline" x1="202" y1="250" x2="368" y2="250"/>
+    <line id="fl-bat"   class="fline" x1="450" y1="302" x2="450" y2="368"/>
 
     <!-- ═══════════════ LINE VALUE LABELS ═══════════════ -->
-    <rect id="lbg-solar"  class="lval-bg" x="272" y="138" width="60" height="18" rx="4"/>
-    <text id="lv-solar"   class="lval" x="302" y="151"></text>
+    <!-- Solar↕Inv – right of vertical line -->
+    <rect id="lvbg-solar" class="lv-bg" x="460" y="151" width="52" height="16" rx="4" display="none"/>
+    <text id="lv-solar" class="lv" x="486" y="163"></text>
 
-    <rect id="lbg-home"   class="lval-bg" x="598" y="138" width="60" height="18" rx="4"/>
-    <text id="lv-home"    class="lval" x="628" y="151"></text>
+    <!-- Inv→Home – above horizontal line -->
+    <rect id="lvbg-home" class="lv-bg" x="589" y="233" width="52" height="16" rx="4" display="none"/>
+    <text id="lv-home" class="lv" x="615" y="245"></text>
 
-    <rect id="lbg-grid"   class="lval-bg" x="272" y="318" width="60" height="18" rx="4"/>
-    <text id="lv-grid"    class="lval" x="302" y="331"></text>
+    <!-- Grid→Inv – above horizontal line -->
+    <rect id="lvbg-grid" class="lv-bg" x="259" y="233" width="52" height="16" rx="4" display="none"/>
+    <text id="lv-grid" class="lv" x="285" y="245"></text>
 
-    <rect id="lbg-bat"    class="lval-bg" x="598" y="318" width="60" height="18" rx="4"/>
-    <text id="lv-bat"     class="lval" x="628" y="331"></text>
+    <!-- Inv↕Bat – right of vertical line -->
+    <rect id="lvbg-bat" class="lv-bg" x="460" y="326" width="52" height="16" rx="4" display="none"/>
+    <text id="lv-bat" class="lv" x="486" y="338"></text>
 
-    <!-- ═══════════════ NODES ═══════════════ -->
+    <!-- ═══════════════ NODE: SOLAR (top) ═══════════════ -->
+    <rect id="box-solar" class="nb nb-solar" x="370" y="15" width="160" height="107" rx="14"/>
+    <!-- Sun icon: circle + rays -->
+    <circle cx="450" cy="46" r="12" fill="#f59e0b" opacity="0.9"/>
+    <g id="sun-rays" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" opacity="0.7">
+      <line x1="450" y1="28" x2="450" y2="23"/>
+      <line x1="450" y1="64" x2="450" y2="69"/>
+      <line x1="432" y1="46" x2="427" y2="46"/>
+      <line x1="468" y1="46" x2="473" y2="46"/>
+      <line x1="437" y1="33" x2="433" y2="29"/>
+      <line x1="463" y1="59" x2="467" y2="63"/>
+      <line x1="463" y1="33" x2="467" y2="29"/>
+      <line x1="437" y1="59" x2="433" y2="63"/>
+    </g>
+    <text class="nt-label" x="450" y="72">SOLÁR (FV)</text>
+    <text id="v-solar" class="nt-val c-solar" x="450" y="95">–</text>
+    <text id="k-solar" class="nt-kwh" x="450" y="112">–</text>
 
-    <!-- ── SOLAR ── top-left -->
-    <rect id="box-solar" class="node-solar" x="83" y="58" width="145" height="95" rx="13"/>
-    <text class="node-icon" x="155" y="88">☀️</text>
-    <text class="node-label" x="155" y="110">SOLÁR (FV)</text>
-    <text id="v-solar" class="node-val val-solar" x="155" y="137">–</text>
+    <!-- ═══════════════ NODE: INVERTER (center) ═══════════════ -->
+    <rect class="nb nb-inv" x="368" y="198" width="164" height="104" rx="14"/>
+    <!-- Lightning bolt icon -->
+    <polygon points="456,213 443,238 451,238 444,263 457,238 449,238" fill="#60a5fa" opacity="0.8"/>
+    <text class="nt-label" x="450" y="272">STŘÍDAČ</text>
+    <text id="v-inv" class="nt-inv-st c-idle" x="450" y="291">–</text>
 
-    <!-- ── INVERTER ── center -->
-    <rect class="node-inverter" x="378" y="178" width="144" height="110" rx="13"/>
-    <text class="node-icon" x="450" y="208">⚡</text>
-    <text class="node-label" x="450" y="228">STŘÍDAČ</text>
-    <text id="v-inv" class="node-val val-inv" x="450" y="256" style="font-size:13px;font-weight:400;"></text>
+    <!-- ═══════════════ NODE: HOME (right) ═══════════════ -->
+    <rect id="box-home" class="nb nb-home" x="700" y="198" width="160" height="104" rx="14"/>
+    <!-- House icon -->
+    <polygon points="780,212 762,232 768,232 768,258 792,258 792,232 798,232" fill="#60a5fa" opacity="0.75"/>
+    <line x1="774" y1="258" x2="774" y2="244" stroke="#60a5fa" stroke-width="2" opacity="0.6"/>
+    <line x1="786" y1="258" x2="786" y2="244" stroke="#60a5fa" stroke-width="2" opacity="0.6"/>
+    <text class="nt-label" x="780" y="272">SPOTŘEBA</text>
+    <text id="v-home" class="nt-val c-home" x="780" y="291">–</text>
 
-    <!-- ── HOME ── top-right -->
-    <rect id="box-home" class="node-home" x="672" y="58" width="145" height="95" rx="13"/>
-    <text class="node-icon" x="744" y="88">🏠</text>
-    <text class="node-label" x="744" y="110">SPOTŘEBA</text>
-    <text id="v-home" class="node-val val-home" x="744" y="137">–</text>
+    <!-- ═══════════════ NODE: GRID (left) ═══════════════ -->
+    <rect id="box-grid" class="nb nb-grid" x="40" y="198" width="160" height="104" rx="14"/>
+    <!-- Power plug icon -->
+    <rect x="111" y="212" width="18" height="28" rx="3" fill="#9ca3af" opacity="0.5"/>
+    <line x1="116" y1="240" x2="116" y2="255" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+    <line x1="124" y1="240" x2="124" y2="255" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+    <rect x="107" y="255" width="26" height="8" rx="4" fill="#9ca3af" opacity="0.4"/>
+    <text class="nt-label" x="120" y="272">SÍŤ</text>
+    <text id="v-grid"   class="nt-val c-idle" x="120" y="291">–</text>
+    <text id="dir-grid" class="nt-dir c-idle" x="120" y="305"></text>
 
-    <!-- ── GRID ── bottom-left -->
-    <rect id="box-grid" class="node-grid" x="83" y="318" width="145" height="95" rx="13"/>
-    <text class="node-icon" x="155" y="348">🔌</text>
-    <text class="node-label" x="155" y="370">SÍŤ</text>
-    <text id="v-grid" class="node-val val-grid-idle" x="155" y="397">–</text>
+    <!-- ═══════════════ NODE: BATTERY (bottom) ═══════════════ -->
+    <rect id="box-bat" class="nb nb-bat" x="370" y="368" width="160" height="122" rx="14"/>
+    <!-- Battery icon (outline with fill indicating SOC) -->
+    <rect x="427" y="378" width="46" height="24" rx="4" fill="none" stroke="#34d399" stroke-width="1.5" opacity="0.5"/>
+    <rect x="473" y="384" width="5" height="12" rx="2" fill="#34d399" opacity="0.4"/>
+    <rect id="bat-icon-fill" x="429" y="380" width="0" height="20" rx="3" fill="#34d399" opacity="0.6"/>
+    <text class="nt-label" x="450" y="414">BATERIE</text>
+    <text id="v-bat" class="nt-val c-idle" x="450" y="435">–</text>
+    <!-- SOC progress bar -->
+    <rect class="soc-bg" x="393" y="445" width="114" height="8" rx="4"/>
+    <rect id="soc-fill" x="393" y="445" width="0" height="8" rx="4" class="soc-good"/>
+    <text id="v-soc" class="nt-kwh" x="450" y="468">SOC: –</text>
 
-    <!-- ── BATTERY ── bottom-right -->
-    <rect id="box-bat" class="node-battery" x="672" y="308" width="145" height="122" rx="13"/>
-    <text class="node-icon" x="744" y="336">🔋</text>
-    <text class="node-label" x="744" y="358">BATERIE</text>
-    <text id="v-bat" class="node-val val-bat-idle" x="744" y="382">–</text>
-    <!-- SOC bar -->
-    <rect class="soc-bg" x="697" y="391" width="94" height="9" rx="4"/>
-    <rect id="soc-fill" x="697" y="391" width="0" height="9" rx="4" class="soc-good"/>
-    <text id="v-soc" class="soc-label" x="744" y="416">SOC: –</text>
-
-    <!-- Subtle corner dots at connection midpoints -->
-    <circle id="dot-solar" cx="302" cy="147" r="0" fill="#f39c12" opacity="0.6"/>
-    <circle id="dot-home"  cx="628" cy="147" r="0" fill="#3498db" opacity="0.6"/>
-    <circle id="dot-grid"  cx="302" cy="327" r="0" fill="#888"    opacity="0.6"/>
-    <circle id="dot-bat"   cx="628" cy="327" r="0" fill="#2ecc71" opacity="0.6"/>
+    <!-- ═══════════════ CORNER DIRECTION ARROWS ═══════════════ -->
+    <!-- These simple triangles hint at the active flow direction -->
+    <!-- Solar (always down) -->
+    <polygon id="arr-solar" points="450,132 444,124 456,124" fill="#f59e0b" opacity="0" />
+    <!-- Home (always right) -->
+    <polygon id="arr-home" points="688,250 680,244 680,256" fill="#60a5fa" opacity="0"/>
+    <!-- Grid import (right = toward inv) / export (left = toward grid) -->
+    <polygon id="arr-grid" points="358,250 366,244 366,256" fill="#f87171" opacity="0"/>
+    <!-- Battery charge (down) / discharge (up) -->
+    <polygon id="arr-bat" points="450,358 444,350 456,350" fill="#34d399" opacity="0"/>
 
   </svg>
 
-  <!-- Legend -->
+  <!-- ═══════════════ STATS BAR ═══════════════ -->
+  <div class="stats-bar">
+    <div class="stat-pill sp-suff" id="pill-suff" style="display:none">
+      <span class="sp-icon">🌿</span>
+      <span>Soběstačnost</span>
+      <span class="sp-val" id="sp-suff-val">–</span>
+    </div>
+    <div class="stat-pill sp-solar" id="pill-kwh" style="display:none">
+      <span class="sp-icon">☀️</span>
+      <span>Dnes</span>
+      <span class="sp-val" id="sp-kwh-val">–</span>
+    </div>
+    <div class="stat-pill sp-grid-imp" id="pill-grid-imp" style="display:none">
+      <span class="sp-icon">🔴</span>
+      <span>Import ze sítě</span>
+      <span class="sp-val" id="sp-grid-imp-val">–</span>
+    </div>
+    <div class="stat-pill sp-grid-exp" id="pill-grid-exp" style="display:none">
+      <span class="sp-icon">🟢</span>
+      <span>Export do sítě</span>
+      <span class="sp-val" id="sp-grid-exp-val">–</span>
+    </div>
+    <div class="stat-pill" style="margin-left:auto;color:#374151;font-size:0.72rem">
+      ↻ 2 s
+    </div>
+  </div>
+
+  <!-- ═══════════════ LEGEND ═══════════════ -->
   <div class="flow-legend">
-    <span class="leg"><span class="leg-dot" style="background:#f39c12"></span>Výroba FV</span>
-    <span class="leg"><span class="leg-dot" style="background:#3498db"></span>Spotřeba domu</span>
-    <span class="leg"><span class="leg-dot" style="background:#2ecc71"></span>Nabíjení / Export do sítě</span>
-    <span class="leg"><span class="leg-dot" style="background:#f39c12"></span>Vybíjení</span>
-    <span class="leg"><span class="leg-dot" style="background:#e74c3c"></span>Import ze sítě</span>
-    <span class="leg" style="margin-left:auto;color:#555">↻ 2 s</span>
+    <span class="leg"><span class="leg-dot" style="background:#f59e0b"></span> Výroba FV</span>
+    <span class="leg"><span class="leg-dot" style="background:#60a5fa"></span> Spotřeba domu</span>
+    <span class="leg"><span class="leg-dot" style="background:#34d399"></span> Nabíjení / Export</span>
+    <span class="leg"><span class="leg-dot" style="background:#fb923c"></span> Vybíjení</span>
+    <span class="leg"><span class="leg-dot" style="background:#f87171"></span> Import ze sítě</span>
+    <span class="leg" style="color:#1f2937">— tloušťka = výkon</span>
   </div>
 </div>
 
 <script>
 (function () {
   const BASE = "{{ base }}";
+  const MAX_W = 8000;
 
-  function fmtW(val) {
-    if (val === null || val === undefined) return "N/A";
-    const abs = Math.abs(val);
-    if (abs >= 1000) return (val / 1000).toFixed(2) + " kW";
-    return Math.round(val) + " W";
+  /* ── Formatting ── */
+  function fmtW(v) {
+    if (v === null || v === undefined) return "–";
+    const a = Math.abs(v);
+    return a >= 1000 ? (a / 1000).toFixed(2) + " kW" : Math.round(a) + " W";
+  }
+  function fmtKwh(v) {
+    if (v === null || v === undefined) return null;
+    return v.toFixed(1) + " kWh";
   }
 
-  function fmtAbs(val) {
-    if (val === null || val === undefined) return "";
-    const abs = Math.abs(val);
-    if (abs >= 1000) return (abs / 1000).toFixed(2) + " kW";
-    return Math.round(abs) + " W";
+  /* ── Flow line helpers ── */
+  function strokeW(watts) {
+    const n = Math.min(Math.abs(watts) / MAX_W, 1);
+    return (3 + n * 9).toFixed(1);
+  }
+  function flowSpeed(watts) {
+    const n = Math.min(Math.abs(watts) / MAX_W, 1);
+    return Math.max(0.28, 1.4 - n * 1.1).toFixed(2) + "s";
   }
 
   /**
-   * Update a flow line.
-   * @param {string} lineId  - SVG path id
-   * @param {string} lblId   - label text id
-   * @param {string} bgId    - label background rect id
-   * @param {number|null} w  - power in watts (null = sensor not configured)
-   * @param {string} stroke  - CSS stroke class when active
-   * @param {boolean} fwd    - true = flow-fwd animation, false = flow-rev
+   * Update a single flow line.
+   * lineId  – SVG line element id
+   * lvBgId  – label background rect id
+   * lvId    – label text id
+   * arrId   – direction arrow polygon id
+   * watts   – power (null = not configured, 0 = idle)
+   * color   – CSS hex color string when active
+   * fwd     – true = animate start→end, false = end→start
+   * arrPts  – polygon points for arrow when active
    */
-  function setLine(lineId, lblId, bgId, w, stroke, fwd) {
-    const path = document.getElementById(lineId);
-    const lbl  = document.getElementById(lblId);
-    const bg   = document.getElementById(bgId);
+  function setLine(lineId, lvBgId, lvId, arrId, watts, color, fwd) {
+    const line = document.getElementById(lineId);
+    const lv   = document.getElementById(lvId);
+    const lvbg = document.getElementById(lvBgId);
+    const arr  = document.getElementById(arrId);
 
-    const txt = fmtAbs(w);
-    lbl.textContent = txt;
+    const active = watts !== null && Math.abs(watts) >= 5;
 
-    // Show/hide label background based on content
-    bg.setAttribute("display", txt ? "block" : "none");
-
-    if (w === null || w === undefined || Math.abs(w) < 5) {
-      path.setAttribute("class", "fline-inactive");
-      lbl.textContent = "";
-      bg.setAttribute("display", "none");
+    if (!active) {
+      line.style.stroke = "transparent";
+      line.style.animation = "none";
+      lv.textContent = "";
+      lvbg.setAttribute("display", "none");
+      if (arr) arr.setAttribute("opacity", "0");
       return;
     }
 
-    path.setAttribute("class", `fline ${stroke} ${fwd ? "fwd" : "rev"}`);
+    const sw = strokeW(watts);
+    const sp = flowSpeed(watts);
+    line.style.stroke        = color;
+    line.style.strokeWidth   = sw;
+    line.style.animation     = `${fwd ? "ff" : "fr"} ${sp} linear infinite`;
+
+    const txt = fmtW(watts);
+    lv.textContent = txt;
+    lv.setAttribute("fill", color);
+    lvbg.setAttribute("display", "block");
+
+    if (arr) {
+      arr.setAttribute("fill", color);
+      arr.setAttribute("opacity", "0.9");
+    }
+  }
+
+  /* ── Glow effect on node box ── */
+  function setGlow(boxId, color, intensity) {
+    const box = document.getElementById(boxId);
+    if (!box) return;
+    if (intensity > 0) {
+      const r = intensity * 14;
+      box.style.filter = `drop-shadow(0 0 ${r}px ${color})`;
+    } else {
+      box.style.filter = "none";
+    }
   }
 
   async function refresh() {
     let d;
     try {
-      const resp = await fetch(BASE + "/api/flow");
-      if (!resp.ok) return;
-      d = await resp.json();
-    } catch (e) {
-      return;
-    }
+      const r = await fetch(BASE + "/api/flow");
+      if (!r.ok) return;
+      d = await r.json();
+    } catch { return; }
 
-    // ── Solar ──────────────────────────────────────────────────────────
-    const vSolar = document.getElementById("v-solar");
-    vSolar.textContent = fmtW(d.pv_w);
-    setLine("l-solar", "lv-solar", "lbg-solar", d.pv_w, "stroke-solar", true);
+    /* ── Solar ── */
+    document.getElementById("v-solar").textContent = fmtW(d.pv_w);
+    const kwh = fmtKwh(d.pv_kwh_today);
+    document.getElementById("k-solar").textContent = kwh ? kwh + " dnes" : "";
+    setLine("fl-solar", "lvbg-solar", "lv-solar", "arr-solar",
+            d.pv_w, "#f59e0b", true);
+    const pvNorm = d.pv_w ? Math.min(d.pv_w / MAX_W, 1) : 0;
+    setGlow("box-solar", "rgba(245,158,11,0.5)", pvNorm);
 
-    // ── Home / Load ────────────────────────────────────────────────────
-    const vHome = document.getElementById("v-home");
-    vHome.textContent = fmtW(d.load_w);
-    setLine("l-home", "lv-home", "lbg-home", d.load_w, "stroke-home", true);
-
-    // ── Grid (positive = import, negative = export) ────────────────────
-    const vGrid = document.getElementById("v-grid");
-    vGrid.textContent = d.grid_w !== null ? fmtAbs(d.grid_w) || "0 W" : "N/A";
-    if (d.grid_w !== null && Math.abs(d.grid_w) >= 5) {
-      const imp = d.grid_w > 0;
-      vGrid.setAttribute("class", `node-val ${imp ? "val-grid-import" : "val-grid-export"}`);
-      // path goes grid→inverter: fwd = import, rev = export
-      setLine("l-grid", "lv-grid", "lbg-grid", d.grid_w,
-              imp ? "stroke-import" : "stroke-export", imp);
+    /* Animate sun rays */
+    const rays = document.getElementById("sun-rays");
+    if (d.pv_w && d.pv_w > 10) {
+      rays.style.opacity = "0.9";
     } else {
-      vGrid.setAttribute("class", "node-val val-grid-idle");
-      setLine("l-grid", "lv-grid", "lbg-grid",
-              d.grid_w !== null ? 0 : null, "stroke-import", true);
+      rays.style.opacity = "0.25";
     }
 
-    // ── Battery (positive = charging, negative = discharging) ──────────
-    const vBat = document.getElementById("v-bat");
-    vBat.textContent = d.battery_w !== null ? fmtAbs(d.battery_w) || "0 W" : "N/A";
-    if (d.battery_w !== null && Math.abs(d.battery_w) >= 5) {
-      const chg = d.battery_w > 0;
-      vBat.setAttribute("class", `node-val ${chg ? "val-bat-charge" : "val-bat-dis"}`);
-      // path goes inverter→battery: fwd = charge, rev = discharge
-      setLine("l-bat", "lv-bat", "lbg-bat", d.battery_w,
-              chg ? "stroke-charge" : "stroke-dis", chg);
+    /* ── Home / Load ── */
+    document.getElementById("v-home").textContent = fmtW(d.load_w);
+    setLine("fl-home", "lvbg-home", "lv-home", "arr-home",
+            d.load_w, "#60a5fa", true);
+    const loadNorm = d.load_w ? Math.min(d.load_w / MAX_W, 1) : 0;
+    setGlow("box-home", "rgba(96,165,250,0.4)", loadNorm);
+
+    /* ── Grid ── */
+    const gw = d.grid_w;
+    const vGrid   = document.getElementById("v-grid");
+    const dirGrid = document.getElementById("dir-grid");
+    const arrGrid = document.getElementById("arr-grid");
+
+    if (gw !== null && Math.abs(gw) >= 5) {
+      const imp = gw > 0;
+      const col = imp ? "#f87171" : "#34d399";
+      vGrid.textContent = fmtW(gw);
+      vGrid.setAttribute("class", `nt-val ${imp ? "c-import" : "c-export"}`);
+      dirGrid.textContent = imp ? "▲ IMPORT" : "▼ EXPORT";
+      dirGrid.setAttribute("class", `nt-dir ${imp ? "c-import" : "c-export"}`);
+      /* path Grid→Inv: fwd = import (grid→inv), rev = export (inv→grid) */
+      setLine("fl-grid", "lvbg-grid", "lv-grid", null, gw, col, imp);
+      /* Arrow triangle points toward inverter (import) or toward grid (export) */
+      if (arrGrid) {
+        arrGrid.setAttribute("fill", col);
+        arrGrid.setAttribute("opacity", "0.9");
+        if (imp) {
+          arrGrid.setAttribute("points", "358,250 366,244 366,256"); /* pointing right = toward inv */
+        } else {
+          arrGrid.setAttribute("points", "202,250 210,244 210,256"); /* pointing left = toward grid */
+        }
+      }
+      setGlow("box-grid", imp ? "rgba(248,113,113,0.4)" : "rgba(52,211,153,0.35)",
+              Math.min(Math.abs(gw) / MAX_W, 1));
+
+      /* Grid status pills */
+      if (imp) {
+        document.getElementById("pill-grid-imp").style.display = "flex";
+        document.getElementById("sp-grid-imp-val").textContent = fmtW(gw);
+        document.getElementById("pill-grid-exp").style.display = "none";
+      } else {
+        document.getElementById("pill-grid-exp").style.display = "flex";
+        document.getElementById("sp-grid-exp-val").textContent = fmtW(gw);
+        document.getElementById("pill-grid-imp").style.display = "none";
+      }
     } else {
-      vBat.setAttribute("class", "node-val val-bat-idle");
-      setLine("l-bat", "lv-bat", "lbg-bat",
-              d.battery_w !== null ? 0 : null, "stroke-charge", true);
+      vGrid.textContent = gw !== null ? "0 W" : "N/A";
+      vGrid.setAttribute("class", "nt-val c-idle");
+      dirGrid.textContent = "";
+      setLine("fl-grid", "lvbg-grid", "lv-grid", arrGrid, 0, "#374151", true);
+      setGlow("box-grid", "", 0);
+      document.getElementById("pill-grid-imp").style.display = "none";
+      document.getElementById("pill-grid-exp").style.display = "none";
     }
 
-    // ── SOC ────────────────────────────────────────────────────────────
+    /* ── Battery ── */
+    const bw  = d.battery_w;
     const soc = d.battery_soc_pct;
+    const vBat = document.getElementById("v-bat");
+    const arrBat = document.getElementById("arr-bat");
+
+    if (bw !== null && Math.abs(bw) >= 5) {
+      const chg = bw > 0;
+      const col = chg ? "#34d399" : "#fb923c";
+      vBat.textContent = fmtW(bw);
+      vBat.setAttribute("class", `nt-val ${chg ? "c-charge" : "c-dis"}`);
+      /* path Inv→Bat: fwd = charge (inv→bat), rev = discharge (bat→inv) */
+      setLine("fl-bat", "lvbg-bat", "lv-bat", null, bw, col, chg);
+      if (arrBat) {
+        arrBat.setAttribute("fill", col);
+        arrBat.setAttribute("opacity", "0.9");
+        if (chg) {
+          arrBat.setAttribute("points", "450,358 444,350 456,350"); /* pointing down = toward bat */
+        } else {
+          arrBat.setAttribute("points", "450,312 444,320 456,320"); /* pointing up = toward inv */
+        }
+      }
+      setGlow("box-bat", chg ? "rgba(52,211,153,0.4)" : "rgba(251,146,60,0.35)",
+              Math.min(Math.abs(bw) / MAX_W, 1));
+    } else {
+      vBat.textContent = bw !== null ? "0 W" : "N/A";
+      vBat.setAttribute("class", "nt-val c-idle");
+      setLine("fl-bat", "lvbg-bat", "lv-bat", arrBat, 0, "#374151", true);
+      setGlow("box-bat", "", 0);
+    }
+
+    /* SOC bar & icon fill */
     if (soc !== null && soc !== undefined) {
-      document.getElementById("v-soc").textContent = "SOC: " + Math.round(soc) + "%";
-      const barW = Math.round(soc * 0.94);
+      document.getElementById("v-soc").textContent = "SOC " + Math.round(soc) + "%";
+      const barW = Math.round(soc * 1.14); /* 114px = 100% */
       const fill = document.getElementById("soc-fill");
       fill.setAttribute("width", barW);
       fill.setAttribute("class", soc < 20 ? "soc-low" : soc < 50 ? "soc-mid" : "soc-good");
+      /* Battery icon fill */
+      const iconFill = document.getElementById("bat-icon-fill");
+      iconFill.setAttribute("width", Math.round(soc * 0.42)); /* max 42px ≈ 100% */
+      iconFill.setAttribute("fill", soc < 20 ? "#f87171" : soc < 50 ? "#fbbf24" : "#34d399");
     } else {
       document.getElementById("v-soc").textContent = "SOC: N/A";
       document.getElementById("soc-fill").setAttribute("width", 0);
+      document.getElementById("bat-icon-fill").setAttribute("width", 0);
     }
 
-    // ── Inverter status label (shows PV power or idle) ─────────────────
+    /* ── Inverter status ── */
     const vInv = document.getElementById("v-inv");
-    if (d.pv_w !== null && d.pv_w >= 5) {
-      vInv.textContent = "▶ aktivní";
-      vInv.style.fill = "#86efac";
+    if (d.pv_w && d.pv_w >= 10) {
+      vInv.textContent = "● aktivní";
+      vInv.setAttribute("class", "nt-inv-st c-charge");
     } else {
-      vInv.textContent = "— standby";
-      vInv.style.fill = "#6b7280";
+      vInv.textContent = "○ standby";
+      vInv.setAttribute("class", "nt-inv-st c-idle");
     }
 
-    // ── Timestamp ──────────────────────────────────────────────────────
-    document.getElementById("flow-ts").textContent =
+    /* ── Self-sufficiency pill ── */
+    const suff = d.self_sufficiency_pct;
+    const pillSuff = document.getElementById("pill-suff");
+    if (suff !== null && suff !== undefined) {
+      pillSuff.style.display = "flex";
+      document.getElementById("sp-suff-val").textContent = Math.round(suff) + " %";
+      const sv = document.querySelector("#pill-suff .sp-val");
+      sv.style.color = suff >= 80 ? "#34d399" : suff >= 50 ? "#fbbf24" : "#f87171";
+    } else {
+      pillSuff.style.display = "none";
+    }
+
+    /* ── Solar kWh pill ── */
+    const pillKwh = document.getElementById("pill-kwh");
+    if (d.pv_kwh_today !== null && d.pv_kwh_today !== undefined) {
+      pillKwh.style.display = "flex";
+      document.getElementById("sp-kwh-val").textContent = d.pv_kwh_today.toFixed(1) + " kWh";
+    } else {
+      pillKwh.style.display = "none";
+    }
+
+    /* ── Timestamp ── */
+    document.getElementById("fw-ts").textContent =
       d.updated_at ? "Aktualizováno: " + d.updated_at : "";
   }
 
-  // Initial load + 2-second polling
   refresh();
   setInterval(refresh, 2000);
 })();
