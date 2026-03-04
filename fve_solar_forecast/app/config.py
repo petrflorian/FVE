@@ -21,8 +21,10 @@ class AppConfig(BaseModel):
     ha_sensor_energy: str = "sensor.solar_assistant_pv_energy_today"
     ha_sensor_battery_soc: Optional[str] = None
     ha_sensor_battery_power: Optional[str] = None
+    ha_sensor_battery_voltage: Optional[str] = None
     ha_sensor_grid_power: Optional[str] = None
     ha_sensor_load_power: Optional[str] = None
+    ha_sensor_inverter_mode: Optional[str] = None
     calibration_window_days: int = Field(default=14, ge=7, le=90)
     log_level: str = "info"
 

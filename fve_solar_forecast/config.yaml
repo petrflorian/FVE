@@ -1,5 +1,5 @@
 name: "FVE Solar Forecast"
-version: "1.0.10"
+version: "1.0.11"
 slug: "fve_solar_forecast"
 description: "Predikce výroby solární elektrárny s automatickým učením"
 url: "https://github.com/petrflorian/FVE"
@@ -31,8 +31,10 @@ options:
   ha_sensor_energy: "sensor.solar_assistant_pv_energy_today"
   ha_sensor_battery_soc: ""
   ha_sensor_battery_power: ""
+  ha_sensor_battery_voltage: ""
   ha_sensor_grid_power: ""
   ha_sensor_load_power: ""
+  ha_sensor_inverter_mode: ""
   calibration_window_days: 14
   log_level: "info"
 
@@ -48,7 +50,9 @@ schema:
   ha_sensor_energy: "str"
   ha_sensor_battery_soc: "str?"
   ha_sensor_battery_power: "str?"
+  ha_sensor_battery_voltage: "str?"
   ha_sensor_grid_power: "str?"
   ha_sensor_load_power: "str?"
+  ha_sensor_inverter_mode: "str?"
   calibration_window_days: "int(7,90)"
   log_level: "list(debug|info|warning|error)"

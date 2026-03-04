@@ -12,11 +12,11 @@ Home Assistant Add-on pro predikci výroby solární elektrárny s automatickým
 
 ## Screenshoty
 
-Dashboard obsahuje 3 stránky:
+Dashboard obsahuje 4 stránky:
 
-| **Dnes** | **Týden** | **Přesnost** |
-|---|---|---|
-| Sloupcový graf forecast vs. skutečnost | 7d zpět + 7d dopředu | 7 grafů: MAPE, korekční faktor, hodinová chyba, oblačnost, histogram |
+| **Dnes** | **Týden** | **Přesnost** | **⚡ Toky** |
+|---|---|---|---|
+| Sloupcový graf forecast vs. skutečnost | 7d zpět + 7d dopředu | 7 grafů: MAPE, korekční faktor, hodinová chyba, oblačnost, histogram | Živé schéma toků energie (FV → střídač → dům / baterie / síť) |
 
 ## Instalace do Home Assistant
 
@@ -42,6 +42,14 @@ azimuth: 180           # Azimut panelů (0=S, 90=V, 180=J, 270=Z)
 kwp: 5.0               # Instalovaný výkon v kWp
 ha_sensor_power: "sensor.solar_assistant_pv_power"         # Senzor okamžitého výkonu (W)
 ha_sensor_energy: "sensor.solar_assistant_pv_energy_today" # Senzor denní energie (kWh)
+
+# Volitelné – pro dashboard Toky:
+ha_sensor_battery_soc: "sensor.battery_state_of_charge"    # SOC baterie (%)
+ha_sensor_battery_power: "sensor.battery_power"            # Výkon baterie (W, + = nabíjení)
+ha_sensor_battery_voltage: "sensor.battery_voltage"        # Napětí baterie (V)
+ha_sensor_grid_power: "sensor.grid_power"                  # Příkon ze sítě (W, pouze import)
+ha_sensor_load_power: "sensor.load_power"                  # Spotřeba domu (W)
+ha_sensor_inverter_mode: "sensor.axpert_king_35_device_mode"  # Pracovní stav střídače
 ```
 
 Token (`ha_token`) **není potřeba** – add-on používá automatický `SUPERVISOR_TOKEN`.
@@ -80,6 +88,7 @@ Aplikace vystavuje REST API (přístupné i z jiných systémů):
 | `GET /api/accuracy` | Denní metriky + souhrnné statistiky |
 | `GET /api/accuracy/hourly` | RMSE/MAE/MBE pro každou hodinu dne |
 | `GET /api/accuracy/weather` | Přesnost dle oblačnosti |
+| `GET /api/flow` | Aktuální toky energie (cache, obnovuje se každé 2 s) |
 | `GET /api/status` | Health check |
 
 ## Technologie
