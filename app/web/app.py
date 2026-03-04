@@ -276,17 +276,6 @@ def create_app(db: DatabaseManager, calibration: CalibrationEngine) -> FastAPI:
             )
         return {"cloud_buckets": result}
 
-
-def _r(value, decimals: int = 1) -> Optional[float]:
-    """Round a nullable float."""
-    return round(value, decimals) if value is not None else None
-
-
-def _skill(rmse_cal: Optional[float], rmse_raw: Optional[float]) -> Optional[float]:
-    if rmse_cal is None or rmse_raw is None or rmse_raw == 0:
-        return None
-    return round((1 - rmse_cal / rmse_raw) * 100, 1)
-
     @app.get("/api/status")
     async def api_status():
         """Health check endpoint."""
@@ -299,3 +288,14 @@ def _skill(rmse_cal: Optional[float], rmse_raw: Optional[float]) -> Optional[flo
         }
 
     return app
+
+
+def _r(value, decimals: int = 1) -> Optional[float]:
+    """Round a nullable float."""
+    return round(value, decimals) if value is not None else None
+
+
+def _skill(rmse_cal: Optional[float], rmse_raw: Optional[float]) -> Optional[float]:
+    if rmse_cal is None or rmse_raw is None or rmse_raw == 0:
+        return None
+    return round((1 - rmse_cal / rmse_raw) * 100, 1)
