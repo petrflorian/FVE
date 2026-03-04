@@ -217,8 +217,7 @@
       <use href="#ico-plug" x="106" y="208" width="28" height="28"/>
     </g>
     <text class="nt-label" x="120" y="272">SÍŤ</text>
-    <text id="v-grid"   class="nt-val c-idle" x="120" y="291">–</text>
-    <text id="dir-grid" class="nt-dir c-idle" x="120" y="305"></text>
+    <text id="v-grid"   class="nt-val c-idle" x="120" y="294">–</text>
 
     <!-- ═══════════════ NODE: BATTERY (bottom) ═══════════════ -->
     <rect id="box-bat" class="nb nb-bat" x="370" y="368" width="160" height="122" rx="14"/>
@@ -397,14 +396,11 @@
     /* ── Grid ── */
     const gw = d.grid_w;
     const vGrid   = document.getElementById("v-grid");
-    const dirGrid = document.getElementById("dir-grid");
     const arrGrid = document.getElementById("arr-grid");
 
     if (gw !== null && gw >= 5) {
       vGrid.textContent = fmtW(gw);
       vGrid.setAttribute("class", "nt-val c-import");
-      dirGrid.textContent = "▲ IMPORT";
-      dirGrid.setAttribute("class", "nt-dir c-import");
       setLine("fl-grid", "lvbg-grid", "lv-grid", null, gw, "#dc2626", true);
       if (arrGrid) {
         arrGrid.setAttribute("fill", "#dc2626");
@@ -417,7 +413,6 @@
     } else {
       vGrid.textContent = gw !== null ? "0 W" : "N/A";
       vGrid.setAttribute("class", "nt-val c-idle");
-      dirGrid.textContent = "";
       setLine("fl-grid", "lvbg-grid", "lv-grid", arrGrid, 0, "#374151", true);
       setGlow("box-grid", "", 0);
       document.getElementById("pill-grid-imp").style.display = "none";
