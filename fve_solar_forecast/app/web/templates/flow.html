@@ -231,6 +231,7 @@
     <rect class="soc-bg" x="393" y="445" width="114" height="8" rx="4"/>
     <rect id="soc-fill" x="393" y="445" width="0" height="8" rx="4" class="soc-good"/>
     <text id="v-soc" class="nt-kwh" x="450" y="468">SOC: –</text>
+    <text id="v-bat-v" class="nt-kwh" x="450" y="482"></text>
 
     <!-- ═══════════════ CORNER DIRECTION ARROWS ═══════════════ -->
     <!-- These simple triangles hint at the active flow direction -->
@@ -466,9 +467,21 @@
       document.getElementById("bat-icon-fill").setAttribute("width", 0);
     }
 
+    /* Battery voltage */
+    const vBatV = document.getElementById("v-bat-v");
+    if (d.battery_voltage_v !== null && d.battery_voltage_v !== undefined) {
+      vBatV.textContent = d.battery_voltage_v.toFixed(1) + " V";
+    } else {
+      vBatV.textContent = "";
+    }
+
     /* ── Inverter status ── */
     const vInv = document.getElementById("v-inv");
-    if (d.pv_w && d.pv_w >= 10) {
+    if (d.inverter_mode) {
+      vInv.textContent = d.inverter_mode;
+      const active = ["Line", "Battery", "Solar", "Hybrid"].includes(d.inverter_mode);
+      vInv.setAttribute("class", `nt-inv-st ${active ? "c-charge" : "c-idle"}`);
+    } else if (d.pv_w && d.pv_w >= 10) {
       vInv.textContent = "● aktivní";
       vInv.setAttribute("class", "nt-inv-st c-charge");
     } else {

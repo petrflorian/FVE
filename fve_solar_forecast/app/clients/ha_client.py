@@ -101,6 +101,24 @@ class HAClient:
         """Return home load/consumption in Watts."""
         return await self._get_optional_sensor_w(self.config.ha_sensor_load_power)
 
+    async def get_battery_voltage_v(self) -> Optional[float]:
+        """Return battery voltage in Volts."""
+        return await self._get_optional_sensor_w(self.config.ha_sensor_battery_voltage)
+
+    async def get_inverter_mode(self) -> Optional[str]:
+        """Return inverter operating mode string (e.g. 'Line', 'Battery', 'Standby')."""
+        if not self.config.ha_sensor_inverter_mode:
+            return None
+        try:
+            state = await self.get_state(self.config.ha_sensor_inverter_mode)
+            value = state.get("state", "unavailable")
+            if value in ("unavailable", "unknown", ""):
+                return None
+            return value
+        except (httpx.HTTPError, KeyError) as exc:
+            logger.debug("get_inverter_mode failed: %s", exc)
+            return None
+
     async def check_connection(self) -> bool:
         """
         Verify HA API connectivity.

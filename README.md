@@ -46,8 +46,10 @@ ha_sensor_energy: "sensor.solar_assistant_pv_energy_today" # Senzor denní energ
 # Volitelné – pro dashboard Toky:
 ha_sensor_battery_soc: "sensor.battery_state_of_charge"    # SOC baterie (%)
 ha_sensor_battery_power: "sensor.battery_power"            # Výkon baterie (W, + = nabíjení)
+ha_sensor_battery_voltage: "sensor.battery_voltage"        # Napětí baterie (V)
 ha_sensor_grid_power: "sensor.grid_power"                  # Příkon ze sítě (W, pouze import)
 ha_sensor_load_power: "sensor.load_power"                  # Spotřeba domu (W)
+ha_sensor_inverter_mode: "sensor.axpert_king_35_device_mode"  # Pracovní stav střídače
 ```
 
 Token (`ha_token`) **není potřeba** – add-on používá automatický `SUPERVISOR_TOKEN`.

@@ -38,10 +38,12 @@ def create_app(db: DatabaseManager, calibration: CalibrationEngine, ha_client: H
         "pv_w": None,
         "battery_soc_pct": None,
         "battery_w": None,
+        "battery_voltage_v": None,
         "grid_w": None,
         "load_w": None,
         "pv_kwh_today": None,
         "self_sufficiency_pct": None,
+        "inverter_mode": None,
         "updated_at": None,
     }
 
@@ -52,12 +54,14 @@ def create_app(db: DatabaseManager, calibration: CalibrationEngine, ha_client: H
                     ha_client.get_pv_power_w(),
                     ha_client.get_battery_soc_pct(),
                     ha_client.get_battery_power_w(),
+                    ha_client.get_battery_voltage_v(),
                     ha_client.get_grid_power_w(),
                     ha_client.get_load_power_w(),
                     ha_client.get_energy_kwh(),
+                    ha_client.get_inverter_mode(),
                     return_exceptions=True,
                 )
-                pv, soc, bat, grid, load, pv_kwh = [
+                pv, soc, bat, bat_v, grid, load, pv_kwh, inv_mode = [
                     r if not isinstance(r, Exception) else None for r in results
                 ]
                 # Self-sufficiency: % of load covered by non-grid sources
@@ -69,10 +73,12 @@ def create_app(db: DatabaseManager, calibration: CalibrationEngine, ha_client: H
                     "pv_w": pv,
                     "battery_soc_pct": soc,
                     "battery_w": bat,
+                    "battery_voltage_v": bat_v,
                     "grid_w": grid,
                     "load_w": load,
                     "pv_kwh_today": pv_kwh,
                     "self_sufficiency_pct": self_suff,
+                    "inverter_mode": inv_mode,
                     "updated_at": datetime.now().strftime("%H:%M:%S"),
                 })
             except Exception as exc:
