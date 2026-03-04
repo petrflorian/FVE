@@ -7,57 +7,56 @@
   .fw { max-width: 960px; margin: 0 auto; padding: 1rem 1rem 2.5rem; }
   .fw-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
   .fw-header h2 { margin: 0; font-size: 1.15rem; letter-spacing: 0.01em; }
-  .fw-ts { font-size: 0.78rem; color: #6b7280; }
+  .fw-ts { font-size: 0.78rem; color: #94a3b8; }
 
   /* ── SVG canvas ── */
   #fsvg {
     width: 100%;
     height: auto;
-    background: #0d1117;
-    border-radius: 16px;
-    box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.6);
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08), 0 0 0 1px #ecf0f1;
   }
 
   /* ── Node boxes ── */
   .nb { stroke-width: 1.5; }
-  .nb-solar   { fill: #130e00; stroke: #78450a; }
-  .nb-inv     { fill: #0a101a; stroke: #1e3a5f; }
-  .nb-home    { fill: #080f1a; stroke: #1a3a5c; }
-  .nb-grid    { fill: #100808; stroke: #3a1010; }
-  .nb-bat     { fill: #060f09; stroke: #0e3a1c; }
+  .nb-solar { fill: #fffbeb; stroke: #d97706; }
+  .nb-inv   { fill: #f0f9ff; stroke: #3b82f6; }
+  .nb-home  { fill: #eff6ff; stroke: #2563eb; }
+  .nb-grid  { fill: #fff5f5; stroke: #ef4444; }
+  .nb-bat   { fill: #f0fdf4; stroke: #22c55e; }
 
   /* ── Node text ── */
-  .nt-icon  { font-size: 26px; text-anchor: middle; dominant-baseline: middle; }
-  .nt-label { font-size: 10px; fill: #4b5563; text-anchor: middle; letter-spacing: 1.2px; font-weight: 600; }
-  .nt-val   { font-size: 18px; font-weight: 700; text-anchor: middle; }
-  .nt-kwh   { font-size: 11px; fill: #4b5563; text-anchor: middle; }
-  .nt-dir   { font-size: 10px; text-anchor: middle; font-weight: 600; letter-spacing: 0.5px; }
+  .nt-icon   { font-size: 26px; text-anchor: middle; dominant-baseline: middle; }
+  .nt-label  { font-size: 10px; fill: #94a3b8; text-anchor: middle; letter-spacing: 1.2px; font-weight: 600; }
+  .nt-val    { font-size: 18px; font-weight: 700; text-anchor: middle; }
+  .nt-kwh    { font-size: 11px; fill: #94a3b8; text-anchor: middle; }
+  .nt-dir    { font-size: 10px; text-anchor: middle; font-weight: 600; letter-spacing: 0.5px; }
   .nt-inv-st { font-size: 11px; text-anchor: middle; }
 
-  .c-solar  { fill: #f59e0b; }
-  .c-home   { fill: #60a5fa; }
-  .c-import { fill: #f87171; }
-  .c-export { fill: #34d399; }
-  .c-charge { fill: #34d399; }
-  .c-dis    { fill: #fb923c; }
-  .c-idle   { fill: #374151; }
+  .c-solar  { fill: #d97706; }
+  .c-home   { fill: #2563eb; }
+  .c-import { fill: #dc2626; }
+  .c-charge { fill: #16a34a; }
+  .c-dis    { fill: #ea580c; }
+  .c-idle   { fill: #cbd5e1; }
 
   /* ── Flow lines ── */
-  .track { fill: none; stroke: #1f2937; stroke-width: 2.5; }
+  .track { fill: none; stroke: #e2e8f0; stroke-width: 2.5; }
   .fline { fill: none; stroke-linecap: round; stroke-dasharray: 9 26; }
 
   @keyframes ff { from { stroke-dashoffset: 35; } to { stroke-dashoffset: 0; } }
   @keyframes fr { from { stroke-dashoffset: 0;  } to { stroke-dashoffset: 35; } }
 
   /* ── SOC bar ── */
-  .soc-bg   { fill: #1f2937; }
-  .soc-good { fill: #34d399; }
-  .soc-mid  { fill: #fbbf24; }
-  .soc-low  { fill: #f87171; }
+  .soc-bg   { fill: #e2e8f0; }
+  .soc-good { fill: #22c55e; }
+  .soc-mid  { fill: #f59e0b; }
+  .soc-low  { fill: #ef4444; }
 
   /* ── Line value labels ── */
-  .lv-bg { fill: #0d1117; }
-  .lv    { font-size: 11px; fill: #9ca3af; text-anchor: middle; font-weight: 500; }
+  .lv-bg { fill: #f8fafc; stroke: #e2e8f0; stroke-width: 1; }
+  .lv    { font-size: 11px; fill: #475569; text-anchor: middle; font-weight: 600; }
 
   /* ── Stats bar ── */
   .stats-bar {
@@ -70,25 +69,24 @@
     display: flex;
     align-items: center;
     gap: 0.45rem;
-    background: #161b22;
-    border: 1px solid #21262d;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-radius: 9999px;
     padding: 0.35rem 0.85rem;
     font-size: 0.82rem;
-    color: #9ca3af;
+    color: #374151;
     transition: border-color 0.3s;
   }
   .stat-pill .sp-icon { font-size: 1rem; }
   .stat-pill .sp-val  { font-weight: 700; }
-  .sp-suff  .sp-val { color: #34d399; }
-  .sp-solar .sp-val { color: #f59e0b; }
-  .sp-grid-imp .sp-val { color: #f87171; }
-  .sp-grid-exp .sp-val { color: #34d399; }
+  .sp-suff  .sp-val { color: #16a34a; }
+  .sp-solar .sp-val { color: #d97706; }
+  .sp-grid-imp .sp-val { color: #dc2626; }
 
   /* ── Legend ── */
   .flow-legend {
     display: flex; flex-wrap: wrap; gap: 0.5rem 1.2rem;
-    margin-top: 0.85rem; font-size: 0.75rem; color: #4b5563;
+    margin-top: 0.85rem; font-size: 0.75rem; color: #94a3b8;
   }
   .leg { display: flex; align-items: center; gap: 0.35rem; }
   .leg-dot { width: 16px; height: 3px; border-radius: 2px; }
@@ -110,10 +108,46 @@
 
     <!-- ── DEFS ── -->
     <defs>
-      <!-- Grid-dot background pattern -->
+      <!-- Background dot pattern -->
       <pattern id="dots" x="0" y="0" width="30" height="30" patternUnits="userSpaceOnUse">
-        <circle cx="1" cy="1" r="0.8" fill="#1f2937" opacity="0.5"/>
+        <circle cx="1" cy="1" r="0.8" fill="#cbd5e1" opacity="0.6"/>
       </pattern>
+
+      <!-- ── Icon symbols (stroke-based, 24×24) ── -->
+      <symbol id="ico-solar" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-linecap="round" stroke-linejoin="round">
+        <!-- Panel frame -->
+        <rect x="2" y="3" width="20" height="12" rx="2" stroke-width="1.7"/>
+        <!-- Cell dividers -->
+        <line x1="9"  y1="3" x2="9"  y2="15" stroke-width="1.1"/>
+        <line x1="15" y1="3" x2="15" y2="15" stroke-width="1.1"/>
+        <line x1="2"  y1="9" x2="22" y2="9"  stroke-width="1.1"/>
+        <!-- Mounting legs -->
+        <line x1="8"  y1="15" x2="6"  y2="21" stroke-width="1.7"/>
+        <line x1="16" y1="15" x2="18" y2="21" stroke-width="1.7"/>
+        <line x1="6"  y1="21" x2="18" y2="21" stroke-width="1.7"/>
+      </symbol>
+
+      <symbol id="ico-bolt" viewBox="0 0 24 24">
+        <!-- Solid lightning bolt (filled) -->
+        <path d="M13 2L4 14h8L10 22L21 10h-8z" fill="currentColor"/>
+      </symbol>
+
+      <symbol id="ico-home" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 12L12 3l9 9" stroke-width="1.7"/>
+        <path d="M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9" stroke-width="1.7"/>
+      </symbol>
+
+      <symbol id="ico-plug" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-linecap="round" stroke-linejoin="round">
+        <!-- Prongs -->
+        <path d="M9 3v5M15 3v5" stroke-width="1.8"/>
+        <!-- Body -->
+        <path d="M6 8h12v3a5 5 0 01-5 5h-2a5 5 0 01-5-5V8z" stroke-width="1.7"/>
+        <!-- Cable -->
+        <line x1="12" y1="16" x2="12" y2="21" stroke-width="1.8"/>
+      </symbol>
     </defs>
 
     <!-- Subtle background grid -->
@@ -150,17 +184,9 @@
 
     <!-- ═══════════════ NODE: SOLAR (top) ═══════════════ -->
     <rect id="box-solar" class="nb nb-solar" x="370" y="15" width="160" height="107" rx="14"/>
-    <!-- Sun icon: circle + rays -->
-    <circle cx="450" cy="46" r="12" fill="#f59e0b" opacity="0.9"/>
-    <g id="sun-rays" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" opacity="0.7">
-      <line x1="450" y1="28" x2="450" y2="23"/>
-      <line x1="450" y1="64" x2="450" y2="69"/>
-      <line x1="432" y1="46" x2="427" y2="46"/>
-      <line x1="468" y1="46" x2="473" y2="46"/>
-      <line x1="437" y1="33" x2="433" y2="29"/>
-      <line x1="463" y1="59" x2="467" y2="63"/>
-      <line x1="463" y1="33" x2="467" y2="29"/>
-      <line x1="437" y1="59" x2="433" y2="63"/>
+    <!-- Solar panel icon -->
+    <g id="solar-icon-g" style="color:#d97706">
+      <use href="#ico-solar" x="432" y="24" width="36" height="36"/>
     </g>
     <text class="nt-label" x="450" y="72">SOLÁR (FV)</text>
     <text id="v-solar" class="nt-val c-solar" x="450" y="95">–</text>
@@ -168,27 +194,28 @@
 
     <!-- ═══════════════ NODE: INVERTER (center) ═══════════════ -->
     <rect class="nb nb-inv" x="368" y="198" width="164" height="104" rx="14"/>
-    <!-- Lightning bolt icon -->
-    <polygon points="456,213 443,238 451,238 444,263 457,238 449,238" fill="#60a5fa" opacity="0.8"/>
+    <!-- Inverter bolt icon -->
+    <g style="color:#3b82f6">
+      <use href="#ico-bolt" x="436" y="210" width="28" height="28"/>
+    </g>
     <text class="nt-label" x="450" y="272">STŘÍDAČ</text>
     <text id="v-inv" class="nt-inv-st c-idle" x="450" y="291">–</text>
 
     <!-- ═══════════════ NODE: HOME (right) ═══════════════ -->
     <rect id="box-home" class="nb nb-home" x="700" y="198" width="160" height="104" rx="14"/>
-    <!-- House icon -->
-    <polygon points="780,212 762,232 768,232 768,258 792,258 792,232 798,232" fill="#60a5fa" opacity="0.75"/>
-    <line x1="774" y1="258" x2="774" y2="244" stroke="#60a5fa" stroke-width="2" opacity="0.6"/>
-    <line x1="786" y1="258" x2="786" y2="244" stroke="#60a5fa" stroke-width="2" opacity="0.6"/>
+    <!-- Home icon -->
+    <g style="color:#2563eb">
+      <use href="#ico-home" x="762" y="208" width="36" height="36"/>
+    </g>
     <text class="nt-label" x="780" y="272">SPOTŘEBA</text>
     <text id="v-home" class="nt-val c-home" x="780" y="291">–</text>
 
     <!-- ═══════════════ NODE: GRID (left) ═══════════════ -->
     <rect id="box-grid" class="nb nb-grid" x="40" y="198" width="160" height="104" rx="14"/>
-    <!-- Power plug icon -->
-    <rect x="111" y="212" width="18" height="28" rx="3" fill="#9ca3af" opacity="0.5"/>
-    <line x1="116" y1="240" x2="116" y2="255" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
-    <line x1="124" y1="240" x2="124" y2="255" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
-    <rect x="107" y="255" width="26" height="8" rx="4" fill="#9ca3af" opacity="0.4"/>
+    <!-- Grid plug icon -->
+    <g style="color:#ef4444">
+      <use href="#ico-plug" x="106" y="208" width="28" height="28"/>
+    </g>
     <text class="nt-label" x="120" y="272">SÍŤ</text>
     <text id="v-grid"   class="nt-val c-idle" x="120" y="291">–</text>
     <text id="dir-grid" class="nt-dir c-idle" x="120" y="305"></text>
@@ -196,9 +223,9 @@
     <!-- ═══════════════ NODE: BATTERY (bottom) ═══════════════ -->
     <rect id="box-bat" class="nb nb-bat" x="370" y="368" width="160" height="122" rx="14"/>
     <!-- Battery icon (outline with fill indicating SOC) -->
-    <rect x="427" y="378" width="46" height="24" rx="4" fill="none" stroke="#34d399" stroke-width="1.5" opacity="0.5"/>
-    <rect x="473" y="384" width="5" height="12" rx="2" fill="#34d399" opacity="0.4"/>
-    <rect id="bat-icon-fill" x="429" y="380" width="0" height="20" rx="3" fill="#34d399" opacity="0.6"/>
+    <rect x="427" y="378" width="46" height="24" rx="4" fill="none" stroke="#22c55e" stroke-width="1.5" opacity="0.7"/>
+    <rect x="473" y="384" width="5" height="12" rx="2" fill="#22c55e" opacity="0.5"/>
+    <rect id="bat-icon-fill" x="429" y="380" width="0" height="20" rx="3" fill="#22c55e" opacity="0.7"/>
     <text class="nt-label" x="450" y="414">BATERIE</text>
     <text id="v-bat" class="nt-val c-idle" x="450" y="435">–</text>
     <!-- SOC progress bar -->
@@ -211,11 +238,11 @@
     <!-- Solar (always down) -->
     <polygon id="arr-solar" points="450,132 444,124 456,124" fill="#f59e0b" opacity="0" />
     <!-- Home (always right) -->
-    <polygon id="arr-home" points="688,250 680,244 680,256" fill="#60a5fa" opacity="0"/>
+    <polygon id="arr-home" points="688,250 680,244 680,256" fill="#2563eb" opacity="0"/>
     <!-- Grid import (right = toward inv) / export (left = toward grid) -->
-    <polygon id="arr-grid" points="358,250 366,244 366,256" fill="#f87171" opacity="0"/>
+    <polygon id="arr-grid" points="358,250 366,244 366,256" fill="#dc2626" opacity="0"/>
     <!-- Battery charge (down) / discharge (up) -->
-    <polygon id="arr-bat" points="450,358 444,350 456,350" fill="#34d399" opacity="0"/>
+    <polygon id="arr-bat" points="450,358 444,350 456,350" fill="#22c55e" opacity="0"/>
 
   </svg>
 
@@ -236,23 +263,18 @@
       <span>Import ze sítě</span>
       <span class="sp-val" id="sp-grid-imp-val">–</span>
     </div>
-    <div class="stat-pill sp-grid-exp" id="pill-grid-exp" style="display:none">
-      <span class="sp-icon">🟢</span>
-      <span>Export do sítě</span>
-      <span class="sp-val" id="sp-grid-exp-val">–</span>
-    </div>
-    <div class="stat-pill" style="margin-left:auto;color:#374151;font-size:0.72rem">
+    <div class="stat-pill" style="margin-left:auto;color:#94a3b8;font-size:0.72rem">
       ↻ 2 s
     </div>
   </div>
 
   <!-- ═══════════════ LEGEND ═══════════════ -->
   <div class="flow-legend">
-    <span class="leg"><span class="leg-dot" style="background:#f59e0b"></span> Výroba FV</span>
-    <span class="leg"><span class="leg-dot" style="background:#60a5fa"></span> Spotřeba domu</span>
-    <span class="leg"><span class="leg-dot" style="background:#34d399"></span> Nabíjení / Export</span>
-    <span class="leg"><span class="leg-dot" style="background:#fb923c"></span> Vybíjení</span>
-    <span class="leg"><span class="leg-dot" style="background:#f87171"></span> Import ze sítě</span>
+    <span class="leg"><span class="leg-dot" style="background:#d97706"></span> Výroba FV</span>
+    <span class="leg"><span class="leg-dot" style="background:#2563eb"></span> Spotřeba domu</span>
+    <span class="leg"><span class="leg-dot" style="background:#16a34a"></span> Nabíjení baterie</span>
+    <span class="leg"><span class="leg-dot" style="background:#ea580c"></span> Vybíjení</span>
+    <span class="leg"><span class="leg-dot" style="background:#dc2626"></span> Import ze sítě</span>
     <span class="leg" style="color:#1f2937">— tloušťka = výkon</span>
   </div>
 </div>
@@ -353,24 +375,24 @@
     const kwh = fmtKwh(d.pv_kwh_today);
     document.getElementById("k-solar").textContent = kwh ? kwh + " dnes" : "";
     setLine("fl-solar", "lvbg-solar", "lv-solar", "arr-solar",
-            d.pv_w, "#f59e0b", true);
+            d.pv_w, "#d97706", true);
     const pvNorm = d.pv_w ? Math.min(d.pv_w / MAX_W, 1) : 0;
-    setGlow("box-solar", "rgba(245,158,11,0.5)", pvNorm);
+    setGlow("box-solar", "rgba(217,119,6,0.35)", pvNorm);
 
-    /* Animate sun rays */
-    const rays = document.getElementById("sun-rays");
+    /* Dim solar icon when inactive */
+    const solarIcon = document.getElementById("solar-icon-g");
     if (d.pv_w && d.pv_w > 10) {
-      rays.style.opacity = "0.9";
+      solarIcon.style.opacity = "1";
     } else {
-      rays.style.opacity = "0.25";
+      solarIcon.style.opacity = "0.35";
     }
 
     /* ── Home / Load ── */
     document.getElementById("v-home").textContent = fmtW(d.load_w);
     setLine("fl-home", "lvbg-home", "lv-home", "arr-home",
-            d.load_w, "#60a5fa", true);
+            d.load_w, "#2563eb", true);
     const loadNorm = d.load_w ? Math.min(d.load_w / MAX_W, 1) : 0;
-    setGlow("box-home", "rgba(96,165,250,0.4)", loadNorm);
+    setGlow("box-home", "rgba(37,99,235,0.25)", loadNorm);
 
     /* ── Grid ── */
     const gw = d.grid_w;
@@ -378,38 +400,20 @@
     const dirGrid = document.getElementById("dir-grid");
     const arrGrid = document.getElementById("arr-grid");
 
-    if (gw !== null && Math.abs(gw) >= 5) {
-      const imp = gw > 0;
-      const col = imp ? "#f87171" : "#34d399";
+    if (gw !== null && gw >= 5) {
       vGrid.textContent = fmtW(gw);
-      vGrid.setAttribute("class", `nt-val ${imp ? "c-import" : "c-export"}`);
-      dirGrid.textContent = imp ? "▲ IMPORT" : "▼ EXPORT";
-      dirGrid.setAttribute("class", `nt-dir ${imp ? "c-import" : "c-export"}`);
-      /* path Grid→Inv: fwd = import (grid→inv), rev = export (inv→grid) */
-      setLine("fl-grid", "lvbg-grid", "lv-grid", null, gw, col, imp);
-      /* Arrow triangle points toward inverter (import) or toward grid (export) */
+      vGrid.setAttribute("class", "nt-val c-import");
+      dirGrid.textContent = "▲ IMPORT";
+      dirGrid.setAttribute("class", "nt-dir c-import");
+      setLine("fl-grid", "lvbg-grid", "lv-grid", null, gw, "#dc2626", true);
       if (arrGrid) {
-        arrGrid.setAttribute("fill", col);
+        arrGrid.setAttribute("fill", "#dc2626");
         arrGrid.setAttribute("opacity", "0.9");
-        if (imp) {
-          arrGrid.setAttribute("points", "358,250 366,244 366,256"); /* pointing right = toward inv */
-        } else {
-          arrGrid.setAttribute("points", "202,250 210,244 210,256"); /* pointing left = toward grid */
-        }
+        arrGrid.setAttribute("points", "358,250 366,244 366,256");
       }
-      setGlow("box-grid", imp ? "rgba(248,113,113,0.4)" : "rgba(52,211,153,0.35)",
-              Math.min(Math.abs(gw) / MAX_W, 1));
-
-      /* Grid status pills */
-      if (imp) {
-        document.getElementById("pill-grid-imp").style.display = "flex";
-        document.getElementById("sp-grid-imp-val").textContent = fmtW(gw);
-        document.getElementById("pill-grid-exp").style.display = "none";
-      } else {
-        document.getElementById("pill-grid-exp").style.display = "flex";
-        document.getElementById("sp-grid-exp-val").textContent = fmtW(gw);
-        document.getElementById("pill-grid-imp").style.display = "none";
-      }
+      setGlow("box-grid", "rgba(220,38,38,0.2)", Math.min(gw / MAX_W, 1));
+      document.getElementById("pill-grid-imp").style.display = "flex";
+      document.getElementById("sp-grid-imp-val").textContent = fmtW(gw);
     } else {
       vGrid.textContent = gw !== null ? "0 W" : "N/A";
       vGrid.setAttribute("class", "nt-val c-idle");
@@ -417,7 +421,6 @@
       setLine("fl-grid", "lvbg-grid", "lv-grid", arrGrid, 0, "#374151", true);
       setGlow("box-grid", "", 0);
       document.getElementById("pill-grid-imp").style.display = "none";
-      document.getElementById("pill-grid-exp").style.display = "none";
     }
 
     /* ── Battery ── */
@@ -428,7 +431,7 @@
 
     if (bw !== null && Math.abs(bw) >= 5) {
       const chg = bw > 0;
-      const col = chg ? "#34d399" : "#fb923c";
+      const col = chg ? "#16a34a" : "#ea580c";
       vBat.textContent = fmtW(bw);
       vBat.setAttribute("class", `nt-val ${chg ? "c-charge" : "c-dis"}`);
       /* path Inv→Bat: fwd = charge (inv→bat), rev = discharge (bat→inv) */
@@ -442,7 +445,7 @@
           arrBat.setAttribute("points", "450,312 444,320 456,320"); /* pointing up = toward inv */
         }
       }
-      setGlow("box-bat", chg ? "rgba(52,211,153,0.4)" : "rgba(251,146,60,0.35)",
+      setGlow("box-bat", chg ? "rgba(22,163,74,0.2)" : "rgba(234,88,12,0.18)",
               Math.min(Math.abs(bw) / MAX_W, 1));
     } else {
       vBat.textContent = bw !== null ? "0 W" : "N/A";
@@ -461,7 +464,7 @@
       /* Battery icon fill */
       const iconFill = document.getElementById("bat-icon-fill");
       iconFill.setAttribute("width", Math.round(soc * 0.42)); /* max 42px ≈ 100% */
-      iconFill.setAttribute("fill", soc < 20 ? "#f87171" : soc < 50 ? "#fbbf24" : "#34d399");
+      iconFill.setAttribute("fill", soc < 20 ? "#ef4444" : soc < 50 ? "#f59e0b" : "#22c55e");
     } else {
       document.getElementById("v-soc").textContent = "SOC: N/A";
       document.getElementById("soc-fill").setAttribute("width", 0);
@@ -485,7 +488,7 @@
       pillSuff.style.display = "flex";
       document.getElementById("sp-suff-val").textContent = Math.round(suff) + " %";
       const sv = document.querySelector("#pill-suff .sp-val");
-      sv.style.color = suff >= 80 ? "#34d399" : suff >= 50 ? "#fbbf24" : "#f87171";
+      sv.style.color = suff >= 80 ? "#16a34a" : suff >= 50 ? "#d97706" : "#dc2626";
     } else {
       pillSuff.style.display = "none";
     }
