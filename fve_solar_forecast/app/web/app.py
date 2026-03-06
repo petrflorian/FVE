@@ -7,9 +7,10 @@ Handles HA Ingress correctly via X-Ingress-Path middleware.
 
 import asyncio
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone as dt_timezone
 from pathlib import Path
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
@@ -17,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.clients.ha_client import HAClient
+from app.config import AppConfig
 from app.database import DatabaseManager
 from app.engine.calibration import CalibrationEngine, CalibrationState
 from app.engine import metrics as M
@@ -27,8 +29,16 @@ TEMPLATES_DIR = Path(__file__).parent / "templates"
 STATIC_DIR = Path(__file__).parent / "static"
 
 
-def create_app(db: DatabaseManager, calibration: CalibrationEngine, ha_client: HAClient) -> FastAPI:
+def create_app(db: DatabaseManager, calibration: CalibrationEngine, ha_client: HAClient, config: Optional[AppConfig] = None) -> FastAPI:
     app = FastAPI(title="FVE Solar Forecast", docs_url=None, redoc_url=None)
+    _tz = ZoneInfo(config.timezone if config else "Europe/Prague")
+
+    def _utc_str_to_local_hour(utc_str: str) -> int:
+        dt = datetime.fromisoformat(utc_str).replace(tzinfo=dt_timezone.utc)
+        return dt.astimezone(_tz).hour
+
+    def _local_today() -> date:
+        return datetime.now(_tz).date()
 
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -141,7 +151,7 @@ def create_app(db: DatabaseManager, calibration: CalibrationEngine, ha_client: H
 
     @app.get("/api/forecast/today")
     async def api_today(request: Request):
-        today = date.today().isoformat()
+        today = _local_today().isoformat()
         cal_state = await calibration.get_current_state()
         slots = await db.get_forecast_for_date(today)
         actuals = await db.get_actuals_for_date(today)
@@ -150,7 +160,7 @@ def create_app(db: DatabaseManager, calibration: CalibrationEngine, ha_client: H
         actuals_by_hour: dict[int, list[float]] = {}
         for a in actuals:
             try:
-                h = int(a["sampled_at"][11:13])
+                h = _utc_str_to_local_hour(a["sampled_at"])
                 actuals_by_hour.setdefault(h, []).append(a["power_w"])
             except (ValueError, TypeError, KeyError):
                 continue
@@ -185,7 +195,7 @@ def create_app(db: DatabaseManager, calibration: CalibrationEngine, ha_client: H
 
     @app.get("/api/forecast/week")
     async def api_week(request: Request):
-        today = date.today()
+        today = _local_today()
         cal_state = await calibration.get_current_state()
         summaries = {
             r["summary_date"]: r

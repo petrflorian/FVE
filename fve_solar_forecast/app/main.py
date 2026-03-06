@@ -62,7 +62,7 @@ async def main() -> None:
     weather_client = OpenMeteoClient(config)
 
     # 3. Calibration engine
-    calibration = CalibrationEngine(db, window_days=config.calibration_window_days)
+    calibration = CalibrationEngine(db, window_days=config.calibration_window_days, timezone=config.timezone)
 
     # 4. Scheduler
     scheduler = JobScheduler(
@@ -81,7 +81,7 @@ async def main() -> None:
         )
 
     # 5. FastAPI + uvicorn
-    app = create_app(db, calibration, ha_client)
+    app = create_app(db, calibration, ha_client, config)
 
     uv_config = uvicorn.Config(
         app=app,
