@@ -217,16 +217,24 @@ def create_app(db: DatabaseManager, calibration: CalibrationEngine, ha_client: H
                 if forecast_raw is not None:
                     forecast_cal = forecast_raw * cal_state.global_correction
 
+            # For past/today days not yet calibrated, compute from raw actuals
+            actual_wh: Optional[float] = summary.get("actual_wh")
+            is_partial = False
+            if actual_wh is None and d <= today:
+                rows = await db.get_actuals_for_date(d_str)
+                actual_wh = await calibration._compute_actual_wh_from_rows(rows)
+                if actual_wh is not None:
+                    is_partial = True  # live, not yet finalized by nightly calibration
+
             days.append(
                 {
                     "date": d_str,
                     "label": d.strftime("%a %-d.%-m."),
                     "forecast_raw_wh": round(forecast_raw, 0) if forecast_raw else None,
                     "forecast_cal_wh": round(forecast_cal, 0) if forecast_cal else None,
-                    "actual_wh": round(summary["actual_wh"], 0)
-                    if summary.get("actual_wh") is not None
-                    else None,
+                    "actual_wh": round(actual_wh, 0) if actual_wh is not None else None,
                     "is_future": d > today,
+                    "is_partial": is_partial,
                 }
             )
 

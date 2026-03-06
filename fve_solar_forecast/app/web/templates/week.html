@@ -53,7 +53,7 @@ fetch(`${BASE}/api/forecast/week`)
           {
             label: 'Skutečnost (kWh)',
             data: days.map(d => d.actual_wh != null ? (d.actual_wh / 1000).toFixed(2) : null),
-            backgroundColor: 'rgba(39,174,96,0.7)',
+            backgroundColor: days.map(d => d.is_partial ? 'rgba(39,174,96,0.35)' : 'rgba(39,174,96,0.7)'),
             borderColor: '#27ae60',
             borderWidth: 1,
           },
@@ -75,7 +75,7 @@ fetch(`${BASE}/api/forecast/week`)
     [...days].reverse().forEach(d => {
       const isToday = d.date === today;
       const forecast = d.forecast_cal_wh != null ? (d.forecast_cal_wh / 1000).toFixed(2) + ' kWh' : '—';
-      const actual   = d.actual_wh != null ? (d.actual_wh / 1000).toFixed(2) + ' kWh' : (d.is_future ? '' : '—');
+      const actual   = d.actual_wh != null ? (d.is_partial ? '~' : '') + (d.actual_wh / 1000).toFixed(2) + ' kWh' : (d.is_future ? '' : '—');
       let error = '';
       if (d.actual_wh != null && d.forecast_cal_wh != null && d.forecast_cal_wh > 0) {
         const pct = ((d.actual_wh - d.forecast_cal_wh) / d.forecast_cal_wh * 100).toFixed(1);
