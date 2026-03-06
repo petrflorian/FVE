@@ -50,6 +50,7 @@ ha_sensor_battery_voltage: "sensor.battery_voltage"        # Napětí baterie (V
 ha_sensor_grid_power: "sensor.grid_power"                  # Příkon ze sítě (W, pouze import)
 ha_sensor_load_power: "sensor.load_power"                  # Spotřeba domu (W)
 ha_sensor_inverter_mode: "sensor.axpert_king_35_device_mode"  # Pracovní stav střídače
+timezone: "Europe/Prague"                                      # Lokální časové pásmo (výchozí)
 ```
 
 Token (`ha_token`) **není potřeba** – add-on používá automatický `SUPERVISOR_TOKEN`.

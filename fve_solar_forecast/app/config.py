@@ -26,6 +26,7 @@ class AppConfig(BaseModel):
     ha_sensor_load_power: Optional[str] = None
     ha_sensor_inverter_mode: Optional[str] = None
     calibration_window_days: int = Field(default=14, ge=7, le=90)
+    timezone: str = "Europe/Prague"
     log_level: str = "info"
 
     @property

@@ -1,5 +1,5 @@
 name: "FVE Solar Forecast"
-version: "1.0.11"
+version: "1.0.12"
 slug: "fve_solar_forecast"
 description: "Predikce výroby solární elektrárny s automatickým učením"
 url: "https://github.com/petrflorian/FVE"
@@ -36,6 +36,7 @@ options:
   ha_sensor_load_power: ""
   ha_sensor_inverter_mode: ""
   calibration_window_days: 14
+  timezone: "Europe/Prague"
   log_level: "info"
 
 schema:
@@ -55,4 +56,5 @@ schema:
   ha_sensor_load_power: "str?"
   ha_sensor_inverter_mode: "str?"
   calibration_window_days: "int(7,90)"
+  timezone: "str"
   log_level: "list(debug|info|warning|error)"

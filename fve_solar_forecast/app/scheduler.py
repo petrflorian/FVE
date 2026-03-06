@@ -3,13 +3,14 @@ APScheduler job definitions.
 
 Jobs:
   fetch_forecast    – stáhne předpověď z forecast.solar (každou hodinu + při startu)
-  fetch_weather     – stáhne počasí z Open-Meteo (6:00 + 14:00)
-  collect_actual    – zaznamená aktuální výkon z HA (každých 5 min, 6–21h)
-  daily_calibrate   – spustí kalibraci a uloží denní souhrn (22:00)
+  fetch_weather     – stáhne počasí z Open-Meteo (6:10 + 14:10 local)
+  collect_actual    – zaznamená aktuální výkon z HA (každých 5 min, 5–21h local)
+  daily_calibrate   – spustí kalibraci a uloží denní souhrn (23:30 local)
 """
 
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone as dt_timezone
+from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -42,7 +43,7 @@ class JobScheduler:
         self.ha_client = ha_client
         self.calibration = calibration
         self.weather_client = weather_client
-        self.scheduler = AsyncIOScheduler(timezone="UTC")
+        self.scheduler = AsyncIOScheduler(timezone=config.timezone)
 
     def start(self) -> None:
         # ── Forecast fetch: every hour + immediately on startup ──────────
@@ -51,38 +52,38 @@ class JobScheduler:
             trigger=IntervalTrigger(hours=1),
             id="fetch_forecast_hourly",
             name="Fetch forecast.solar (hourly)",
-            next_run_time=datetime.utcnow(),  # run immediately at startup
+            next_run_time=datetime.now(dt_timezone.utc),  # run immediately at startup
             max_instances=1,
             coalesce=True,
         )
 
-        # ── Weather fetch: 06:00 + 14:00 UTC ─────────────────────────────
+        # ── Weather fetch: 06:10 + 14:10 local ───────────────────────────
         self.scheduler.add_job(
             self._fetch_weather_job,
-            trigger=CronTrigger(hour="6,14", minute=10),
+            trigger=CronTrigger(hour="6,14", minute=10, timezone=self.config.timezone),
             id="fetch_weather",
-            name="Fetch Open-Meteo weather (6+14h)",
-            next_run_time=datetime.utcnow(),  # also run at startup
+            name="Fetch Open-Meteo weather (6+14h local)",
+            next_run_time=datetime.now(dt_timezone.utc),  # also run at startup
             max_instances=1,
             coalesce=True,
         )
 
-        # ── Actual power logging: every 5 min during daylight ────────────
+        # ── Actual power logging: every 5 min during daylight (local time) ─
         self.scheduler.add_job(
             self._collect_actual_job,
-            trigger=CronTrigger(minute="*/5", hour="6-21"),
+            trigger=CronTrigger(minute="*/5", hour="5-21", timezone=self.config.timezone),
             id="collect_actual",
-            name="Collect HA PV power (5 min)",
+            name="Collect HA PV power (5 min, 5–21h local)",
             max_instances=1,
             coalesce=True,
         )
 
-        # ── Daily calibration: 22:00 UTC ─────────────────────────────────
+        # ── Daily calibration: 23:30 local ───────────────────────────────
         self.scheduler.add_job(
             self._daily_calibrate_job,
-            trigger=CronTrigger(hour=22, minute=0),
+            trigger=CronTrigger(hour=23, minute=30, timezone=self.config.timezone),
             id="daily_calibrate",
-            name="Daily calibration (22:00)",
+            name="Daily calibration (23:30 local)",
             max_instances=1,
         )
 
@@ -126,7 +127,8 @@ class JobScheduler:
             logger.error("Failed to store actual reading: %s", exc)
 
     async def _daily_calibrate_job(self) -> None:
-        yesterday = date.today() - timedelta(days=1)
+        tz = ZoneInfo(self.config.timezone)
+        yesterday = datetime.now(tz).date() - timedelta(days=1)
         try:
             state = await self.calibration.run_daily_calibration(yesterday)
             logger.info(

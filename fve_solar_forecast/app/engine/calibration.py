@@ -9,8 +9,9 @@ Phase 'phase2' (14+ valid days): + time-of-day correction factors.
 import logging
 import math
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone as dt_timezone
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from app.database import DatabaseManager
 from app.engine import metrics as M
@@ -44,9 +45,15 @@ class CalibrationState:
 
 class CalibrationEngine:
 
-    def __init__(self, db: DatabaseManager, window_days: int = 14) -> None:
+    def __init__(self, db: DatabaseManager, window_days: int = 14, timezone: str = "Europe/Prague") -> None:
         self.db = db
         self.window_days = window_days
+        self._tz = ZoneInfo(timezone)
+
+    def _utc_str_to_local_hour(self, utc_str: str) -> int:
+        """Convert a UTC ISO datetime string (no tzinfo) to local hour-of-day."""
+        dt = datetime.fromisoformat(utc_str).replace(tzinfo=dt_timezone.utc)
+        return dt.astimezone(self._tz).hour
 
     async def run_daily_calibration(self, target_date: date) -> CalibrationState:
         """
@@ -224,7 +231,7 @@ class CalibrationEngine:
 
             for actual in actuals:
                 try:
-                    hour = int(actual["sampled_at"][11:13])
+                    hour = self._utc_str_to_local_hour(actual["sampled_at"])
                     power_w = actual["power_w"]
                     f_watts = f_by_hour.get(hour, 0)
                 except (ValueError, KeyError, TypeError):
@@ -287,7 +294,7 @@ class CalibrationEngine:
         actuals_by_hour: dict[int, list[float]] = {}
         for a in actuals:
             try:
-                h = int(a["sampled_at"][11:13])
+                h = self._utc_str_to_local_hour(a["sampled_at"])
                 actuals_by_hour.setdefault(h, []).append(a["power_w"])
             except (ValueError, TypeError, KeyError):
                 continue
