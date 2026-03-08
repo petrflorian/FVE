@@ -211,8 +211,8 @@ def create_app(db: DatabaseManager, calibration: CalibrationEngine, ha_client: H
             forecast_raw: Optional[float] = summary.get("forecast_wh_raw")
             forecast_cal: Optional[float] = summary.get("forecast_wh_calibrated")
 
-            # For future days not in summary, pull from forecasts table
-            if forecast_raw is None and d >= today:
+            # For any day without summary, pull forecast from forecasts table
+            if forecast_raw is None:
                 forecast_raw = await db.get_latest_forecast_wh_day(d_str)
                 if forecast_raw is not None:
                     forecast_cal = forecast_raw * cal_state.global_correction
